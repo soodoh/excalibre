@@ -1,0 +1,17 @@
+services:
+  excalibre:
+    build: .
+    container_name: excalibre
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./data:/app/data:ro
+      - ./excalibre-data:/app/excalibre
+    environment:
+      - BETTER_AUTH_SECRET=change-me-in-production
+      - BETTER_AUTH_URL=http://localhost:3000
+      # Optional OIDC
+      # - OIDC_ISSUER=https://auth.example.com
+      # - OIDC_CLIENT_ID=excalibre
+      # - OIDC_CLIENT_SECRET=secret
+    restart: unless-stopped
