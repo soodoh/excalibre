@@ -1,0 +1,39 @@
+---
+title: Getting Started
+description: Install and run Excalibre with Docker.
+---
+
+## Prerequisites
+
+- Docker and Docker Compose installed
+- A directory containing your ebook files
+
+## Installation
+
+Create a `compose.yml` file:
+
+```yaml
+services:
+  excalibre:
+    image: excalibre:latest
+    ports:
+      - "3000:3000"
+    volumes:
+      - /path/to/your/books:/app/data:ro
+      - excalibre-data:/app/excalibre
+    environment:
+      - BETTER_AUTH_SECRET=generate-a-random-secret
+      - BETTER_AUTH_URL=http://localhost:3000
+    restart: unless-stopped
+
+volumes:
+  excalibre-data:
+```
+
+Then run:
+
+```bash
+docker compose up -d
+```
+
+Visit `http://localhost:3000` to create your admin account.
