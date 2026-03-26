@@ -1,0 +1,5 @@
+**/routeTree.gen.ts
+.output
+dist
+node_modules
+.turbo
