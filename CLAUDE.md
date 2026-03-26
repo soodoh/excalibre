@@ -4,6 +4,12 @@
 
 Excalibre is a self-hosted ebook library manager and web reader — a modern, Calibre-free rewrite of Calibre Web Automated. Built as a Turborepo monorepo.
 
+## First-Time Setup
+
+```bash
+cp apps/web/.env.example apps/web/.env
+```
+
 ## Quick Commands
 
 ```bash

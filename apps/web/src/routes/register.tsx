@@ -1,4 +1,9 @@
-import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
+import {
+  createFileRoute,
+  redirect,
+  useNavigate,
+  Link,
+} from "@tanstack/react-router";
 import { useState } from "react";
 import type { SyntheticEvent } from "react";
 import { signUp } from "src/lib/auth-client";
@@ -14,8 +19,16 @@ import {
   CardTitle,
 } from "src/components/ui/card";
 import { toast } from "sonner";
+import { getIsFirstUserFn } from "src/server/auth";
 
 export const Route = createFileRoute("/register")({
+  beforeLoad: async () => {
+    const { isFirstUser } = await getIsFirstUserFn();
+    if (!isFirstUser) {
+      // eslint-disable-next-line only-throw-error
+      throw redirect({ to: "/login" });
+    }
+  },
   component: RegisterPage,
 });
 
@@ -34,6 +47,7 @@ function RegisterPage() {
       if (result.error) {
         toast.error(result.error.message ?? "Failed to create account");
       } else {
+        toast.success("Account created! Signing in...");
         void navigate({ to: "/" });
       }
     } catch {
@@ -49,7 +63,7 @@ function RegisterPage() {
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold">Create Account</CardTitle>
           <CardDescription>
-            Register for a new Excalibre account
+            Set up your Excalibre admin account to get started.
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>

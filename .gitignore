@@ -20,6 +20,9 @@ data/
 .claude/plans/
 .superpowers/
 
+# Astro cache
+.astro/
+
 # Test artifacts
 test-results/
 playwright-report/

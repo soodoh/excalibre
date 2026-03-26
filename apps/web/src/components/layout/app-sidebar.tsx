@@ -28,10 +28,10 @@ export default function AppSidebar(): JSX.Element {
   return (
     <Sidebar>
       <SidebarHeader className="border-b border-sidebar-border px-4 py-3">
-        <div className="flex items-center gap-2">
+        <Link to="/" className="flex items-center gap-2">
           <BookOpen className="size-5" />
           <span className="font-semibold">Excalibre</span>
-        </div>
+        </Link>
       </SidebarHeader>
 
       <SidebarContent>
