@@ -9,6 +9,7 @@ import {
 } from "@tanstack/react-router";
 
 import appCss from "src/styles/app.css?url";
+import { Toaster } from "src/components/ui/sonner";
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   {
@@ -28,6 +29,7 @@ function RootComponent() {
   return (
     <RootDocument>
       <Outlet />
+      <Toaster />
     </RootDocument>
   );
 }
