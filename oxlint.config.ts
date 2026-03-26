@@ -7,6 +7,8 @@ export default defineConfig({
     ".output/**",
     "dist/**",
     "**/routeTree.gen.ts",
+    "**/src/components/ui/**",
+    "**/src/hooks/use-mobile.ts",
   ],
   rules: {
     "typescript/no-restricted-types": "off",
