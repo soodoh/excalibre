@@ -1,0 +1,25 @@
+node_modules
+.output
+dist/
+.vinxi
+.tanstack
+.turbo
+
+# Data
+data/
+
+# Environment
+.env
+
+# Claude/Serena
+.worktrees/
+.serena/
+.playwright-mcp/
+.claude/worktrees/
+.claude/sessions/
+.claude/plans/
+.superpowers/
+
+# Test artifacts
+test-results/
+playwright-report/

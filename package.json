@@ -1,0 +1,36 @@
+{
+  "name": "excalibre",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "lint:fix": "turbo lint:fix",
+    "lint-staged": "lint-staged",
+    "prepare": "husky",
+    "test": "turbo test"
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx}": [
+      "oxlint --fix --config oxlint.config.ts"
+    ],
+    "*.{js,jsx,ts,tsx,css,html,json,md,mdx,yaml,yml}": "prettier --write"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^20.4.2",
+    "@commitlint/config-conventional": "^20.4.2",
+    "@commitlint/types": "^20.4.0",
+    "@standard-config/oxlint": "^1.2.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.7",
+    "oxlint": "^1.49.0",
+    "prettier": "^3.8.1",
+    "turbo": "^2.5.4",
+    "typescript": "^5.9.3"
+  }
+}
