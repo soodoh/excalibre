@@ -1,9 +1,10 @@
 // oxlint-disable typescript/no-unsafe-assignment, typescript/no-unsafe-call, typescript/no-unsafe-member-access, typescript/no-unsafe-return
+// oxlint-disable typescript/no-unsafe-assignment, typescript/no-unsafe-call, typescript/no-unsafe-member-access, typescript/no-unsafe-return
 import type { JSX } from "react";
 import { useState } from "react";
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { BookOpen, ArrowLeft, BookMarked } from "lucide-react";
+import { BookOpen, ArrowLeft } from "lucide-react";
 import { getBookDetailFn } from "src/server/books";
 import { queryKeys } from "src/lib/query-keys";
 import { Badge } from "src/components/ui/badge";
@@ -102,8 +103,21 @@ function MetaRow({
   );
 }
 
+const FORMAT_PRIORITY = ["epub", "pdf", "cbz", "mobi", "azw3", "fb2"];
+
+function getBestFile(
+  files: BookDetail["files"],
+): BookDetail["files"][number] | undefined {
+  return [...files].toSorted((a, b) => {
+    const aIdx = FORMAT_PRIORITY.indexOf(a.format);
+    const bIdx = FORMAT_PRIORITY.indexOf(b.format);
+    return (aIdx === -1 ? 999 : aIdx) - (bIdx === -1 ? 999 : bIdx);
+  })[0];
+}
+
 function BookDetailContent({ book }: { book: BookDetail }): JSX.Element {
   const router = useRouter();
+  const bestFile = getBestFile(book.files);
 
   const handleBack = (): void => {
     router.history.back();
@@ -178,10 +192,22 @@ function BookDetailContent({ book }: { book: BookDetail }): JSX.Element {
 
           {/* Actions */}
           <div className="flex gap-2">
-            <Button disabled>
-              <BookMarked className="mr-1.5 size-4" />
-              Read (coming soon)
-            </Button>
+            {bestFile ? (
+              <Link
+                to="/read/$bookId/$fileId"
+                params={{
+                  bookId: String(book.id),
+                  fileId: String(bestFile.id),
+                }}
+              >
+                <Button>
+                  <BookOpen className="mr-1.5 size-4" />
+                  Read
+                </Button>
+              </Link>
+            ) : (
+              <Button disabled>No readable files</Button>
+            )}
           </div>
 
           <Separator />
@@ -259,9 +285,17 @@ function BookDetailContent({ book }: { book: BookDetail }): JSX.Element {
                       {file.source}
                     </td>
                     <td className="px-4 py-2 text-right">
-                      <Button variant="ghost" size="sm" disabled>
-                        Read
-                      </Button>
+                      <Link
+                        to="/read/$bookId/$fileId"
+                        params={{
+                          bookId: String(book.id),
+                          fileId: String(file.id),
+                        }}
+                      >
+                        <Button variant="ghost" size="sm">
+                          Read
+                        </Button>
+                      </Link>
                     </td>
                   </tr>
                 ))}
