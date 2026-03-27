@@ -9,6 +9,8 @@ import {
   authors,
   booksAuthors,
   series,
+  tags,
+  booksTags,
   libraries,
   libraryAccess,
 } from "src/db/schema";
@@ -90,11 +92,18 @@ export const getBookDetailFn = createServerFn({ method: "GET" })
       }
     }
 
+    const tagRows = await db
+      .select({ id: tags.id, name: tags.name })
+      .from(booksTags)
+      .innerJoin(tags, eq(booksTags.tagId, tags.id))
+      .where(eq(booksTags.bookId, data.id));
+
     return {
       ...book,
       files,
       authors: authorRows,
       series: seriesInfo,
+      tags: tagRows,
     };
   });
 
