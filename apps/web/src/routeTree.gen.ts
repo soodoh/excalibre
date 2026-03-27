@@ -14,12 +14,17 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthedRouteImport } from './routes/_authed'
 import { Route as AuthedIndexRouteImport } from './routes/_authed/index'
 import { Route as AuthedSearchRouteImport } from './routes/_authed/search'
+import { Route as ApiOpdsIndexRouteImport } from './routes/api/opds/index'
+import { Route as ApiOpdsSearchRouteImport } from './routes/api/opds/search'
+import { Route as ApiOpdsRecentRouteImport } from './routes/api/opds/recent'
+import { Route as ApiOpdsAllRouteImport } from './routes/api/opds/all'
 import { Route as ApiKosyncHealthcheckRouteImport } from './routes/api/kosync/healthcheck'
 import { Route as ApiCoversBookIdRouteImport } from './routes/api/covers/$bookId'
 import { Route as ApiBooksFileIdRouteImport } from './routes/api/books/$fileId'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as AuthedShelvesShelfIdRouteImport } from './routes/_authed/shelves.$shelfId'
 import { Route as AuthedSettingsUsersRouteImport } from './routes/_authed/settings/users'
+import { Route as AuthedSettingsSyncRouteImport } from './routes/_authed/settings/sync'
 import { Route as AuthedSettingsScanningRouteImport } from './routes/_authed/settings/scanning'
 import { Route as AuthedSettingsLibrariesRouteImport } from './routes/_authed/settings/libraries'
 import { Route as AuthedSettingsJobsRouteImport } from './routes/_authed/settings/jobs'
@@ -30,10 +35,17 @@ import { Route as AuthedLibrariesLibraryIdRouteImport } from './routes/_authed/l
 import { Route as AuthedCollectionsCollectionIdRouteImport } from './routes/_authed/collections.$collectionId'
 import { Route as AuthedBooksBookIdRouteImport } from './routes/_authed/books.$bookId'
 import { Route as AuthedAuthorsAuthorIdRouteImport } from './routes/_authed/authors.$authorId'
+import { Route as ApiOpdsSearchXmlRouteImport } from './routes/api/opds/search.xml'
+import { Route as ApiOpdsLibrariesLibraryIdRouteImport } from './routes/api/opds/libraries.$libraryId'
 import { Route as ApiKosyncUsersCreateRouteImport } from './routes/api/kosync/users.create'
 import { Route as ApiKosyncUsersAuthRouteImport } from './routes/api/kosync/users.auth'
 import { Route as ApiKosyncSyncsProgressRouteImport } from './routes/api/kosync/syncs.progress'
 import { Route as AuthedReadBookIdFileIdRouteImport } from './routes/_authed/read.$bookId.$fileId'
+import { Route as ApiOpdsPseBookIdPageNumberRouteImport } from './routes/api/opds/pse.$bookId.$pageNumber'
+import { Route as ApiKoboTokenV1InitializationRouteImport } from './routes/api/kobo/$token/v1/initialization'
+import { Route as ApiKoboTokenV1LibrarySyncRouteImport } from './routes/api/kobo/$token/v1/library.sync'
+import { Route as ApiKoboTokenV1LibraryBookIdStateRouteImport } from './routes/api/kobo/$token/v1/library.$bookId.state'
+import { Route as ApiKoboTokenV1LibraryBookIdDownloadRouteImport } from './routes/api/kobo/$token/v1/library.$bookId.download'
 
 const RegisterRoute = RegisterRouteImport.update({
   id: '/register',
@@ -58,6 +70,26 @@ const AuthedSearchRoute = AuthedSearchRouteImport.update({
   id: '/search',
   path: '/search',
   getParentRoute: () => AuthedRoute,
+} as any)
+const ApiOpdsIndexRoute = ApiOpdsIndexRouteImport.update({
+  id: '/api/opds/',
+  path: '/api/opds/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiOpdsSearchRoute = ApiOpdsSearchRouteImport.update({
+  id: '/api/opds/search',
+  path: '/api/opds/search',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiOpdsRecentRoute = ApiOpdsRecentRouteImport.update({
+  id: '/api/opds/recent',
+  path: '/api/opds/recent',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiOpdsAllRoute = ApiOpdsAllRouteImport.update({
+  id: '/api/opds/all',
+  path: '/api/opds/all',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const ApiKosyncHealthcheckRoute = ApiKosyncHealthcheckRouteImport.update({
   id: '/api/kosync/healthcheck',
@@ -87,6 +119,11 @@ const AuthedShelvesShelfIdRoute = AuthedShelvesShelfIdRouteImport.update({
 const AuthedSettingsUsersRoute = AuthedSettingsUsersRouteImport.update({
   id: '/settings/users',
   path: '/settings/users',
+  getParentRoute: () => AuthedRoute,
+} as any)
+const AuthedSettingsSyncRoute = AuthedSettingsSyncRouteImport.update({
+  id: '/settings/sync',
+  path: '/settings/sync',
   getParentRoute: () => AuthedRoute,
 } as any)
 const AuthedSettingsScanningRoute = AuthedSettingsScanningRouteImport.update({
@@ -142,6 +179,17 @@ const AuthedAuthorsAuthorIdRoute = AuthedAuthorsAuthorIdRouteImport.update({
   path: '/authors/$authorId',
   getParentRoute: () => AuthedRoute,
 } as any)
+const ApiOpdsSearchXmlRoute = ApiOpdsSearchXmlRouteImport.update({
+  id: '/xml',
+  path: '/xml',
+  getParentRoute: () => ApiOpdsSearchRoute,
+} as any)
+const ApiOpdsLibrariesLibraryIdRoute =
+  ApiOpdsLibrariesLibraryIdRouteImport.update({
+    id: '/api/opds/libraries/$libraryId',
+    path: '/api/opds/libraries/$libraryId',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiKosyncUsersCreateRoute = ApiKosyncUsersCreateRouteImport.update({
   id: '/api/kosync/users/create',
   path: '/api/kosync/users/create',
@@ -162,6 +210,36 @@ const AuthedReadBookIdFileIdRoute = AuthedReadBookIdFileIdRouteImport.update({
   path: '/read/$bookId/$fileId',
   getParentRoute: () => AuthedRoute,
 } as any)
+const ApiOpdsPseBookIdPageNumberRoute =
+  ApiOpdsPseBookIdPageNumberRouteImport.update({
+    id: '/api/opds/pse/$bookId/$pageNumber',
+    path: '/api/opds/pse/$bookId/$pageNumber',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiKoboTokenV1InitializationRoute =
+  ApiKoboTokenV1InitializationRouteImport.update({
+    id: '/api/kobo/$token/v1/initialization',
+    path: '/api/kobo/$token/v1/initialization',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiKoboTokenV1LibrarySyncRoute =
+  ApiKoboTokenV1LibrarySyncRouteImport.update({
+    id: '/api/kobo/$token/v1/library/sync',
+    path: '/api/kobo/$token/v1/library/sync',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiKoboTokenV1LibraryBookIdStateRoute =
+  ApiKoboTokenV1LibraryBookIdStateRouteImport.update({
+    id: '/api/kobo/$token/v1/library/$bookId/state',
+    path: '/api/kobo/$token/v1/library/$bookId/state',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiKoboTokenV1LibraryBookIdDownloadRoute =
+  ApiKoboTokenV1LibraryBookIdDownloadRouteImport.update({
+    id: '/api/kobo/$token/v1/library/$bookId/download',
+    path: '/api/kobo/$token/v1/library/$bookId/download',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthedIndexRoute
@@ -178,16 +256,28 @@ export interface FileRoutesByFullPath {
   '/settings/jobs': typeof AuthedSettingsJobsRoute
   '/settings/libraries': typeof AuthedSettingsLibrariesRoute
   '/settings/scanning': typeof AuthedSettingsScanningRoute
+  '/settings/sync': typeof AuthedSettingsSyncRoute
   '/settings/users': typeof AuthedSettingsUsersRoute
   '/shelves/$shelfId': typeof AuthedShelvesShelfIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/books/$fileId': typeof ApiBooksFileIdRoute
   '/api/covers/$bookId': typeof ApiCoversBookIdRoute
   '/api/kosync/healthcheck': typeof ApiKosyncHealthcheckRoute
+  '/api/opds/all': typeof ApiOpdsAllRoute
+  '/api/opds/recent': typeof ApiOpdsRecentRoute
+  '/api/opds/search': typeof ApiOpdsSearchRouteWithChildren
+  '/api/opds/': typeof ApiOpdsIndexRoute
   '/read/$bookId/$fileId': typeof AuthedReadBookIdFileIdRoute
   '/api/kosync/syncs/progress': typeof ApiKosyncSyncsProgressRoute
   '/api/kosync/users/auth': typeof ApiKosyncUsersAuthRoute
   '/api/kosync/users/create': typeof ApiKosyncUsersCreateRoute
+  '/api/opds/libraries/$libraryId': typeof ApiOpdsLibrariesLibraryIdRoute
+  '/api/opds/search/xml': typeof ApiOpdsSearchXmlRoute
+  '/api/kobo/$token/v1/initialization': typeof ApiKoboTokenV1InitializationRoute
+  '/api/opds/pse/$bookId/$pageNumber': typeof ApiOpdsPseBookIdPageNumberRoute
+  '/api/kobo/$token/v1/library/sync': typeof ApiKoboTokenV1LibrarySyncRoute
+  '/api/kobo/$token/v1/library/$bookId/download': typeof ApiKoboTokenV1LibraryBookIdDownloadRoute
+  '/api/kobo/$token/v1/library/$bookId/state': typeof ApiKoboTokenV1LibraryBookIdStateRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
@@ -204,16 +294,28 @@ export interface FileRoutesByTo {
   '/settings/jobs': typeof AuthedSettingsJobsRoute
   '/settings/libraries': typeof AuthedSettingsLibrariesRoute
   '/settings/scanning': typeof AuthedSettingsScanningRoute
+  '/settings/sync': typeof AuthedSettingsSyncRoute
   '/settings/users': typeof AuthedSettingsUsersRoute
   '/shelves/$shelfId': typeof AuthedShelvesShelfIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/books/$fileId': typeof ApiBooksFileIdRoute
   '/api/covers/$bookId': typeof ApiCoversBookIdRoute
   '/api/kosync/healthcheck': typeof ApiKosyncHealthcheckRoute
+  '/api/opds/all': typeof ApiOpdsAllRoute
+  '/api/opds/recent': typeof ApiOpdsRecentRoute
+  '/api/opds/search': typeof ApiOpdsSearchRouteWithChildren
+  '/api/opds': typeof ApiOpdsIndexRoute
   '/read/$bookId/$fileId': typeof AuthedReadBookIdFileIdRoute
   '/api/kosync/syncs/progress': typeof ApiKosyncSyncsProgressRoute
   '/api/kosync/users/auth': typeof ApiKosyncUsersAuthRoute
   '/api/kosync/users/create': typeof ApiKosyncUsersCreateRoute
+  '/api/opds/libraries/$libraryId': typeof ApiOpdsLibrariesLibraryIdRoute
+  '/api/opds/search/xml': typeof ApiOpdsSearchXmlRoute
+  '/api/kobo/$token/v1/initialization': typeof ApiKoboTokenV1InitializationRoute
+  '/api/opds/pse/$bookId/$pageNumber': typeof ApiOpdsPseBookIdPageNumberRoute
+  '/api/kobo/$token/v1/library/sync': typeof ApiKoboTokenV1LibrarySyncRoute
+  '/api/kobo/$token/v1/library/$bookId/download': typeof ApiKoboTokenV1LibraryBookIdDownloadRoute
+  '/api/kobo/$token/v1/library/$bookId/state': typeof ApiKoboTokenV1LibraryBookIdStateRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -232,16 +334,28 @@ export interface FileRoutesById {
   '/_authed/settings/jobs': typeof AuthedSettingsJobsRoute
   '/_authed/settings/libraries': typeof AuthedSettingsLibrariesRoute
   '/_authed/settings/scanning': typeof AuthedSettingsScanningRoute
+  '/_authed/settings/sync': typeof AuthedSettingsSyncRoute
   '/_authed/settings/users': typeof AuthedSettingsUsersRoute
   '/_authed/shelves/$shelfId': typeof AuthedShelvesShelfIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/books/$fileId': typeof ApiBooksFileIdRoute
   '/api/covers/$bookId': typeof ApiCoversBookIdRoute
   '/api/kosync/healthcheck': typeof ApiKosyncHealthcheckRoute
+  '/api/opds/all': typeof ApiOpdsAllRoute
+  '/api/opds/recent': typeof ApiOpdsRecentRoute
+  '/api/opds/search': typeof ApiOpdsSearchRouteWithChildren
+  '/api/opds/': typeof ApiOpdsIndexRoute
   '/_authed/read/$bookId/$fileId': typeof AuthedReadBookIdFileIdRoute
   '/api/kosync/syncs/progress': typeof ApiKosyncSyncsProgressRoute
   '/api/kosync/users/auth': typeof ApiKosyncUsersAuthRoute
   '/api/kosync/users/create': typeof ApiKosyncUsersCreateRoute
+  '/api/opds/libraries/$libraryId': typeof ApiOpdsLibrariesLibraryIdRoute
+  '/api/opds/search/xml': typeof ApiOpdsSearchXmlRoute
+  '/api/kobo/$token/v1/initialization': typeof ApiKoboTokenV1InitializationRoute
+  '/api/opds/pse/$bookId/$pageNumber': typeof ApiOpdsPseBookIdPageNumberRoute
+  '/api/kobo/$token/v1/library/sync': typeof ApiKoboTokenV1LibrarySyncRoute
+  '/api/kobo/$token/v1/library/$bookId/download': typeof ApiKoboTokenV1LibraryBookIdDownloadRoute
+  '/api/kobo/$token/v1/library/$bookId/state': typeof ApiKoboTokenV1LibraryBookIdStateRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -260,16 +374,28 @@ export interface FileRouteTypes {
     | '/settings/jobs'
     | '/settings/libraries'
     | '/settings/scanning'
+    | '/settings/sync'
     | '/settings/users'
     | '/shelves/$shelfId'
     | '/api/auth/$'
     | '/api/books/$fileId'
     | '/api/covers/$bookId'
     | '/api/kosync/healthcheck'
+    | '/api/opds/all'
+    | '/api/opds/recent'
+    | '/api/opds/search'
+    | '/api/opds/'
     | '/read/$bookId/$fileId'
     | '/api/kosync/syncs/progress'
     | '/api/kosync/users/auth'
     | '/api/kosync/users/create'
+    | '/api/opds/libraries/$libraryId'
+    | '/api/opds/search/xml'
+    | '/api/kobo/$token/v1/initialization'
+    | '/api/opds/pse/$bookId/$pageNumber'
+    | '/api/kobo/$token/v1/library/sync'
+    | '/api/kobo/$token/v1/library/$bookId/download'
+    | '/api/kobo/$token/v1/library/$bookId/state'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
@@ -286,16 +412,28 @@ export interface FileRouteTypes {
     | '/settings/jobs'
     | '/settings/libraries'
     | '/settings/scanning'
+    | '/settings/sync'
     | '/settings/users'
     | '/shelves/$shelfId'
     | '/api/auth/$'
     | '/api/books/$fileId'
     | '/api/covers/$bookId'
     | '/api/kosync/healthcheck'
+    | '/api/opds/all'
+    | '/api/opds/recent'
+    | '/api/opds/search'
+    | '/api/opds'
     | '/read/$bookId/$fileId'
     | '/api/kosync/syncs/progress'
     | '/api/kosync/users/auth'
     | '/api/kosync/users/create'
+    | '/api/opds/libraries/$libraryId'
+    | '/api/opds/search/xml'
+    | '/api/kobo/$token/v1/initialization'
+    | '/api/opds/pse/$bookId/$pageNumber'
+    | '/api/kobo/$token/v1/library/sync'
+    | '/api/kobo/$token/v1/library/$bookId/download'
+    | '/api/kobo/$token/v1/library/$bookId/state'
   id:
     | '__root__'
     | '/_authed'
@@ -313,16 +451,28 @@ export interface FileRouteTypes {
     | '/_authed/settings/jobs'
     | '/_authed/settings/libraries'
     | '/_authed/settings/scanning'
+    | '/_authed/settings/sync'
     | '/_authed/settings/users'
     | '/_authed/shelves/$shelfId'
     | '/api/auth/$'
     | '/api/books/$fileId'
     | '/api/covers/$bookId'
     | '/api/kosync/healthcheck'
+    | '/api/opds/all'
+    | '/api/opds/recent'
+    | '/api/opds/search'
+    | '/api/opds/'
     | '/_authed/read/$bookId/$fileId'
     | '/api/kosync/syncs/progress'
     | '/api/kosync/users/auth'
     | '/api/kosync/users/create'
+    | '/api/opds/libraries/$libraryId'
+    | '/api/opds/search/xml'
+    | '/api/kobo/$token/v1/initialization'
+    | '/api/opds/pse/$bookId/$pageNumber'
+    | '/api/kobo/$token/v1/library/sync'
+    | '/api/kobo/$token/v1/library/$bookId/download'
+    | '/api/kobo/$token/v1/library/$bookId/state'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -333,9 +483,19 @@ export interface RootRouteChildren {
   ApiBooksFileIdRoute: typeof ApiBooksFileIdRoute
   ApiCoversBookIdRoute: typeof ApiCoversBookIdRoute
   ApiKosyncHealthcheckRoute: typeof ApiKosyncHealthcheckRoute
+  ApiOpdsAllRoute: typeof ApiOpdsAllRoute
+  ApiOpdsRecentRoute: typeof ApiOpdsRecentRoute
+  ApiOpdsSearchRoute: typeof ApiOpdsSearchRouteWithChildren
+  ApiOpdsIndexRoute: typeof ApiOpdsIndexRoute
   ApiKosyncSyncsProgressRoute: typeof ApiKosyncSyncsProgressRoute
   ApiKosyncUsersAuthRoute: typeof ApiKosyncUsersAuthRoute
   ApiKosyncUsersCreateRoute: typeof ApiKosyncUsersCreateRoute
+  ApiOpdsLibrariesLibraryIdRoute: typeof ApiOpdsLibrariesLibraryIdRoute
+  ApiKoboTokenV1InitializationRoute: typeof ApiKoboTokenV1InitializationRoute
+  ApiOpdsPseBookIdPageNumberRoute: typeof ApiOpdsPseBookIdPageNumberRoute
+  ApiKoboTokenV1LibrarySyncRoute: typeof ApiKoboTokenV1LibrarySyncRoute
+  ApiKoboTokenV1LibraryBookIdDownloadRoute: typeof ApiKoboTokenV1LibraryBookIdDownloadRoute
+  ApiKoboTokenV1LibraryBookIdStateRoute: typeof ApiKoboTokenV1LibraryBookIdStateRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -374,6 +534,34 @@ declare module '@tanstack/react-router' {
       fullPath: '/search'
       preLoaderRoute: typeof AuthedSearchRouteImport
       parentRoute: typeof AuthedRoute
+    }
+    '/api/opds/': {
+      id: '/api/opds/'
+      path: '/api/opds'
+      fullPath: '/api/opds/'
+      preLoaderRoute: typeof ApiOpdsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/opds/search': {
+      id: '/api/opds/search'
+      path: '/api/opds/search'
+      fullPath: '/api/opds/search'
+      preLoaderRoute: typeof ApiOpdsSearchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/opds/recent': {
+      id: '/api/opds/recent'
+      path: '/api/opds/recent'
+      fullPath: '/api/opds/recent'
+      preLoaderRoute: typeof ApiOpdsRecentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/opds/all': {
+      id: '/api/opds/all'
+      path: '/api/opds/all'
+      fullPath: '/api/opds/all'
+      preLoaderRoute: typeof ApiOpdsAllRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/api/kosync/healthcheck': {
       id: '/api/kosync/healthcheck'
@@ -415,6 +603,13 @@ declare module '@tanstack/react-router' {
       path: '/settings/users'
       fullPath: '/settings/users'
       preLoaderRoute: typeof AuthedSettingsUsersRouteImport
+      parentRoute: typeof AuthedRoute
+    }
+    '/_authed/settings/sync': {
+      id: '/_authed/settings/sync'
+      path: '/settings/sync'
+      fullPath: '/settings/sync'
+      preLoaderRoute: typeof AuthedSettingsSyncRouteImport
       parentRoute: typeof AuthedRoute
     }
     '/_authed/settings/scanning': {
@@ -487,6 +682,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedAuthorsAuthorIdRouteImport
       parentRoute: typeof AuthedRoute
     }
+    '/api/opds/search/xml': {
+      id: '/api/opds/search/xml'
+      path: '/xml'
+      fullPath: '/api/opds/search/xml'
+      preLoaderRoute: typeof ApiOpdsSearchXmlRouteImport
+      parentRoute: typeof ApiOpdsSearchRoute
+    }
+    '/api/opds/libraries/$libraryId': {
+      id: '/api/opds/libraries/$libraryId'
+      path: '/api/opds/libraries/$libraryId'
+      fullPath: '/api/opds/libraries/$libraryId'
+      preLoaderRoute: typeof ApiOpdsLibrariesLibraryIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/kosync/users/create': {
       id: '/api/kosync/users/create'
       path: '/api/kosync/users/create'
@@ -515,6 +724,41 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedReadBookIdFileIdRouteImport
       parentRoute: typeof AuthedRoute
     }
+    '/api/opds/pse/$bookId/$pageNumber': {
+      id: '/api/opds/pse/$bookId/$pageNumber'
+      path: '/api/opds/pse/$bookId/$pageNumber'
+      fullPath: '/api/opds/pse/$bookId/$pageNumber'
+      preLoaderRoute: typeof ApiOpdsPseBookIdPageNumberRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/kobo/$token/v1/initialization': {
+      id: '/api/kobo/$token/v1/initialization'
+      path: '/api/kobo/$token/v1/initialization'
+      fullPath: '/api/kobo/$token/v1/initialization'
+      preLoaderRoute: typeof ApiKoboTokenV1InitializationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/kobo/$token/v1/library/sync': {
+      id: '/api/kobo/$token/v1/library/sync'
+      path: '/api/kobo/$token/v1/library/sync'
+      fullPath: '/api/kobo/$token/v1/library/sync'
+      preLoaderRoute: typeof ApiKoboTokenV1LibrarySyncRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/kobo/$token/v1/library/$bookId/state': {
+      id: '/api/kobo/$token/v1/library/$bookId/state'
+      path: '/api/kobo/$token/v1/library/$bookId/state'
+      fullPath: '/api/kobo/$token/v1/library/$bookId/state'
+      preLoaderRoute: typeof ApiKoboTokenV1LibraryBookIdStateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/kobo/$token/v1/library/$bookId/download': {
+      id: '/api/kobo/$token/v1/library/$bookId/download'
+      path: '/api/kobo/$token/v1/library/$bookId/download'
+      fullPath: '/api/kobo/$token/v1/library/$bookId/download'
+      preLoaderRoute: typeof ApiKoboTokenV1LibraryBookIdDownloadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -531,6 +775,7 @@ interface AuthedRouteChildren {
   AuthedSettingsJobsRoute: typeof AuthedSettingsJobsRoute
   AuthedSettingsLibrariesRoute: typeof AuthedSettingsLibrariesRoute
   AuthedSettingsScanningRoute: typeof AuthedSettingsScanningRoute
+  AuthedSettingsSyncRoute: typeof AuthedSettingsSyncRoute
   AuthedSettingsUsersRoute: typeof AuthedSettingsUsersRoute
   AuthedShelvesShelfIdRoute: typeof AuthedShelvesShelfIdRoute
   AuthedReadBookIdFileIdRoute: typeof AuthedReadBookIdFileIdRoute
@@ -549,6 +794,7 @@ const AuthedRouteChildren: AuthedRouteChildren = {
   AuthedSettingsJobsRoute: AuthedSettingsJobsRoute,
   AuthedSettingsLibrariesRoute: AuthedSettingsLibrariesRoute,
   AuthedSettingsScanningRoute: AuthedSettingsScanningRoute,
+  AuthedSettingsSyncRoute: AuthedSettingsSyncRoute,
   AuthedSettingsUsersRoute: AuthedSettingsUsersRoute,
   AuthedShelvesShelfIdRoute: AuthedShelvesShelfIdRoute,
   AuthedReadBookIdFileIdRoute: AuthedReadBookIdFileIdRoute,
@@ -556,6 +802,18 @@ const AuthedRouteChildren: AuthedRouteChildren = {
 
 const AuthedRouteWithChildren =
   AuthedRoute._addFileChildren(AuthedRouteChildren)
+
+interface ApiOpdsSearchRouteChildren {
+  ApiOpdsSearchXmlRoute: typeof ApiOpdsSearchXmlRoute
+}
+
+const ApiOpdsSearchRouteChildren: ApiOpdsSearchRouteChildren = {
+  ApiOpdsSearchXmlRoute: ApiOpdsSearchXmlRoute,
+}
+
+const ApiOpdsSearchRouteWithChildren = ApiOpdsSearchRoute._addFileChildren(
+  ApiOpdsSearchRouteChildren,
+)
 
 const rootRouteChildren: RootRouteChildren = {
   AuthedRoute: AuthedRouteWithChildren,
@@ -565,9 +823,20 @@ const rootRouteChildren: RootRouteChildren = {
   ApiBooksFileIdRoute: ApiBooksFileIdRoute,
   ApiCoversBookIdRoute: ApiCoversBookIdRoute,
   ApiKosyncHealthcheckRoute: ApiKosyncHealthcheckRoute,
+  ApiOpdsAllRoute: ApiOpdsAllRoute,
+  ApiOpdsRecentRoute: ApiOpdsRecentRoute,
+  ApiOpdsSearchRoute: ApiOpdsSearchRouteWithChildren,
+  ApiOpdsIndexRoute: ApiOpdsIndexRoute,
   ApiKosyncSyncsProgressRoute: ApiKosyncSyncsProgressRoute,
   ApiKosyncUsersAuthRoute: ApiKosyncUsersAuthRoute,
   ApiKosyncUsersCreateRoute: ApiKosyncUsersCreateRoute,
+  ApiOpdsLibrariesLibraryIdRoute: ApiOpdsLibrariesLibraryIdRoute,
+  ApiKoboTokenV1InitializationRoute: ApiKoboTokenV1InitializationRoute,
+  ApiOpdsPseBookIdPageNumberRoute: ApiOpdsPseBookIdPageNumberRoute,
+  ApiKoboTokenV1LibrarySyncRoute: ApiKoboTokenV1LibrarySyncRoute,
+  ApiKoboTokenV1LibraryBookIdDownloadRoute:
+    ApiKoboTokenV1LibraryBookIdDownloadRoute,
+  ApiKoboTokenV1LibraryBookIdStateRoute: ApiKoboTokenV1LibraryBookIdStateRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

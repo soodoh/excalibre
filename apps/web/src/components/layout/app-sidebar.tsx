@@ -6,6 +6,7 @@ import {
   Home,
   Library,
   Plus,
+  RefreshCw,
   Settings,
   Sparkles,
 } from "lucide-react";
@@ -213,6 +214,25 @@ export default function AppSidebar(): JSX.Element {
           </SidebarGroupContent>
         </SidebarGroup>
 
+        <SidebarGroup>
+          <SidebarGroupLabel>Account</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={currentPath === "/settings/sync"}
+                >
+                  <Link to="/settings/sync">
+                    <RefreshCw className="size-4" />
+                    <span>Sync Services</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
         {session?.user.role === "admin" && (
           <SidebarGroup>
             <SidebarGroupLabel>Admin</SidebarGroupLabel>
@@ -221,7 +241,10 @@ export default function AppSidebar(): JSX.Element {
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     asChild
-                    isActive={currentPath.startsWith("/settings")}
+                    isActive={
+                      currentPath.startsWith("/settings") &&
+                      currentPath !== "/settings/sync"
+                    }
                   >
                     <Link to="/settings/general">
                       <Settings className="size-4" />

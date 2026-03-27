@@ -15,12 +15,6 @@
     "prepare": "husky",
     "test": "turbo test"
   },
-  "lint-staged": {
-    "*.{js,jsx,ts,tsx}": [
-      "oxlint --fix --config oxlint.config.ts"
-    ],
-    "*.{js,jsx,ts,tsx,css,html,json,md,mdx,yaml,yml}": "prettier --write"
-  },
   "devDependencies": {
     "@commitlint/cli": "^20.4.2",
     "@commitlint/config-conventional": "^20.4.2",
