@@ -15,6 +15,7 @@ import {
   series,
   tags,
   booksTags,
+  jobs,
 } from "src/db/schema";
 import { requireAdmin } from "src/server/middleware";
 import {
@@ -199,17 +200,32 @@ async function processNewFile(
   }
 
   // Insert book file
-  await db.insert(bookFiles).values({
-    bookId,
-    filePath,
-    format: getFileFormat(filePath),
-    fileSize: stat.size,
-    fileHash,
-    md5Hash,
-    source: "scanned",
-    volumeType: "data",
-    modifiedAt: new Date(stat.mtimeMs),
-  });
+  const format = getFileFormat(filePath);
+  const [newRecord] = await db
+    .insert(bookFiles)
+    .values({
+      bookId,
+      filePath,
+      format,
+      fileSize: stat.size,
+      fileHash,
+      md5Hash,
+      source: "scanned",
+      volumeType: "data",
+      modifiedAt: new Date(stat.mtimeMs),
+    })
+    .returning({ id: bookFiles.id });
+
+  // Queue epub_fix job for EPUBs
+  if (format === "epub") {
+    db.insert(jobs)
+      .values({
+        type: "epub_fix",
+        payload: { bookFileId: newRecord.id },
+        priority: 1,
+      })
+      .run();
+  }
 
   // Authors
   const authorNames =

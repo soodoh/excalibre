@@ -1,6 +1,7 @@
 import { db } from "src/db";
 import { libraries } from "src/db/schema";
 import { scanLibrary } from "src/server/scanner";
+import { ensureJobWorkerStarted } from "src/server/job-worker";
 
 const SCHEDULER_INTERVAL_MS = 60_000; // 60 seconds
 
@@ -32,6 +33,8 @@ export function ensureSchedulerStarted(): void {
     return;
   }
   schedulerStarted = true;
+
+  ensureJobWorkerStarted();
 
   setInterval(() => {
     void checkAndRunDueScans();
