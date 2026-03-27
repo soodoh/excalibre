@@ -6,8 +6,17 @@ export const queryKeys = {
   },
   books: {
     all: ["books"] as const,
-    list: (libraryId: number) => ["books", "list", libraryId] as const,
+    list: (
+      libraryId: number,
+      search?: string,
+    ):
+      | readonly ["books", "list", number, string]
+      | readonly ["books", "list", number] =>
+      search
+        ? (["books", "list", libraryId, search] as const)
+        : (["books", "list", libraryId] as const),
     detail: (id: number) => ["books", "detail", id] as const,
+    recent: (limit?: number) => ["books", "recent", limit ?? 12] as const,
   },
   authors: {
     all: ["authors"] as const,
