@@ -28,11 +28,27 @@ export const queryKeys = {
   },
   shelves: {
     all: ["shelves"] as const,
+    list: () => ["shelves", "list"] as const,
     detail: (id: number) => ["shelves", "detail", id] as const,
+    books: (id: number) => ["shelves", "books", id] as const,
   },
   collections: {
     all: ["collections"] as const,
+    list: () => ["collections", "list"] as const,
     detail: (id: number) => ["collections", "detail", id] as const,
+    books: (id: number) => ["collections", "books", id] as const,
+  },
+  readingLists: {
+    all: ["readingLists"] as const,
+    list: () => ["readingLists", "list"] as const,
+    detail: (id: number) => ["readingLists", "detail", id] as const,
+    books: (id: number) => ["readingLists", "books", id] as const,
+  },
+  search: {
+    results: (query: string) => ["search", "results", query] as const,
+  },
+  continueReading: {
+    list: () => ["continueReading", "list"] as const,
   },
   jobs: {
     all: ["jobs"] as const,
