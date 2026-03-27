@@ -13,6 +13,10 @@ import {
   libraryAccess,
   shelves,
   shelvesBooks,
+  collections,
+  collectionsBooks,
+  readingLists,
+  readingListBooks,
 } from "src/db/schema";
 import { requireAuth } from "src/server/middleware";
 
@@ -372,4 +376,61 @@ export const removeBookFromShelfFn = createServerFn({ method: "POST" })
         ),
       );
     return { success: true };
+  });
+
+/**
+ * Returns which shelves (manual only), collections, and reading lists
+ * already contain the given book for the current user.
+ */
+export const getBookMembershipFn = createServerFn({ method: "GET" })
+  .validator((raw: unknown) =>
+    z.object({ bookId: z.number().int() }).parse(raw),
+  )
+  .handler(async ({ data }) => {
+    const session = await requireAuth();
+
+    const [shelfRows, collectionRows, listRows] = await Promise.all([
+      db
+        .select({ shelfId: shelvesBooks.shelfId })
+        .from(shelvesBooks)
+        .innerJoin(
+          shelves,
+          and(
+            eq(shelvesBooks.shelfId, shelves.id),
+            eq(shelves.userId, session.user.id),
+            eq(shelves.type, "manual"),
+          ),
+        )
+        .where(eq(shelvesBooks.bookId, data.bookId)),
+
+      db
+        .select({ collectionId: collectionsBooks.collectionId })
+        .from(collectionsBooks)
+        .innerJoin(
+          collections,
+          and(
+            eq(collectionsBooks.collectionId, collections.id),
+            eq(collections.userId, session.user.id),
+          ),
+        )
+        .where(eq(collectionsBooks.bookId, data.bookId)),
+
+      db
+        .select({ readingListId: readingListBooks.readingListId })
+        .from(readingListBooks)
+        .innerJoin(
+          readingLists,
+          and(
+            eq(readingListBooks.readingListId, readingLists.id),
+            eq(readingLists.userId, session.user.id),
+          ),
+        )
+        .where(eq(readingListBooks.bookId, data.bookId)),
+    ]);
+
+    return {
+      shelfIds: shelfRows.map((r) => r.shelfId),
+      collectionIds: collectionRows.map((r) => r.collectionId),
+      readingListIds: listRows.map((r) => r.readingListId),
+    };
   });
