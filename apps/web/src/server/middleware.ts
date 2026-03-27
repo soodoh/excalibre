@@ -22,6 +22,8 @@ export async function requireAuth(): Promise<AuthSession> {
   if (!session) {
     throw new Error("Unauthorized");
   }
+  const { ensureSchedulerStarted } = await import("./scheduler");
+  ensureSchedulerStarted();
   return session;
 }
 
