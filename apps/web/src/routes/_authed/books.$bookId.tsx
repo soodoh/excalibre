@@ -4,7 +4,7 @@ import type { JSX } from "react";
 import { useState } from "react";
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { BookOpen, ArrowLeft, Plus } from "lucide-react";
+import { BookOpen, ArrowLeft, Plus, ArrowRightLeft } from "lucide-react";
 import { getBookDetailFn } from "src/server/books";
 import { queryKeys } from "src/lib/query-keys";
 import { Badge } from "src/components/ui/badge";
@@ -12,6 +12,7 @@ import { Button } from "src/components/ui/button";
 import { Separator } from "src/components/ui/separator";
 import { Skeleton } from "src/components/ui/skeleton";
 import { AddToShelf } from "src/components/organization/add-to-shelf";
+import { ConvertDialog } from "src/components/library/convert-dialog";
 
 export const Route = createFileRoute("/_authed/books/$bookId")({
   component: BookDetailPage,
@@ -218,6 +219,18 @@ function BookDetailContent({ book }: { book: BookDetail }): JSX.Element {
                 </Button>
               }
             />
+            {bestFile && (
+              <ConvertDialog
+                bookFile={bestFile}
+                bookId={book.id}
+                trigger={
+                  <Button variant="outline">
+                    <ArrowRightLeft className="mr-2 h-4 w-4" />
+                    Convert
+                  </Button>
+                }
+              />
+            )}
           </div>
 
           <Separator />
