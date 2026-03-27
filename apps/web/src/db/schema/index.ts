@@ -4,3 +4,4 @@ export * from "./books";
 export * from "./reading";
 export * from "./organization";
 export * from "./jobs";
+export * from "./sync";
