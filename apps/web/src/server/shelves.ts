@@ -196,6 +196,24 @@ export const getShelvesFn = createServerFn({ method: "GET" }).handler(
   },
 );
 
+export const getShelfFn = createServerFn({ method: "GET" })
+  .validator((raw: unknown) =>
+    z.object({ shelfId: z.number().int() }).parse(raw),
+  )
+  .handler(async ({ data }) => {
+    const session = await requireAuth();
+    const shelf = await db.query.shelves.findFirst({
+      where: and(
+        eq(shelves.id, data.shelfId),
+        eq(shelves.userId, session.user.id),
+      ),
+    });
+    if (!shelf) {
+      throw new Error("Shelf not found");
+    }
+    return shelf;
+  });
+
 export const getShelfBooksFn = createServerFn({ method: "GET" })
   .validator((raw: unknown) =>
     z.object({ shelfId: z.number().int() }).parse(raw),
