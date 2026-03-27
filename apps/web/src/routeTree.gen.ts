@@ -9,38 +9,393 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as RegisterRouteImport } from './routes/register'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as AuthedRouteImport } from './routes/_authed'
+import { Route as AuthedIndexRouteImport } from './routes/_authed/index'
+import { Route as AuthedSearchRouteImport } from './routes/_authed/search'
+import { Route as ApiKosyncHealthcheckRouteImport } from './routes/api/kosync/healthcheck'
+import { Route as ApiCoversBookIdRouteImport } from './routes/api/covers/$bookId'
+import { Route as ApiBooksFileIdRouteImport } from './routes/api/books/$fileId'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
+import { Route as AuthedShelvesShelfIdRouteImport } from './routes/_authed/shelves.$shelfId'
+import { Route as AuthedSettingsUsersRouteImport } from './routes/_authed/settings/users'
+import { Route as AuthedSettingsScanningRouteImport } from './routes/_authed/settings/scanning'
+import { Route as AuthedSettingsLibrariesRouteImport } from './routes/_authed/settings/libraries'
+import { Route as AuthedSettingsJobsRouteImport } from './routes/_authed/settings/jobs'
+import { Route as AuthedSettingsGeneralRouteImport } from './routes/_authed/settings/general'
+import { Route as AuthedSeriesSeriesIdRouteImport } from './routes/_authed/series.$seriesId'
+import { Route as AuthedReadingListsListIdRouteImport } from './routes/_authed/reading-lists.$listId'
+import { Route as AuthedLibrariesLibraryIdRouteImport } from './routes/_authed/libraries.$libraryId'
+import { Route as AuthedCollectionsCollectionIdRouteImport } from './routes/_authed/collections.$collectionId'
+import { Route as AuthedBooksBookIdRouteImport } from './routes/_authed/books.$bookId'
+import { Route as AuthedAuthorsAuthorIdRouteImport } from './routes/_authed/authors.$authorId'
+import { Route as ApiKosyncUsersCreateRouteImport } from './routes/api/kosync/users.create'
+import { Route as ApiKosyncUsersAuthRouteImport } from './routes/api/kosync/users.auth'
+import { Route as ApiKosyncSyncsProgressRouteImport } from './routes/api/kosync/syncs.progress'
+import { Route as AuthedReadBookIdFileIdRouteImport } from './routes/_authed/read.$bookId.$fileId'
 
+const RegisterRoute = RegisterRouteImport.update({
+  id: '/register',
+  path: '/register',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthedRoute = AuthedRouteImport.update({
+  id: '/_authed',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthedIndexRoute = AuthedIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AuthedRoute,
+} as any)
+const AuthedSearchRoute = AuthedSearchRouteImport.update({
+  id: '/search',
+  path: '/search',
+  getParentRoute: () => AuthedRoute,
+} as any)
+const ApiKosyncHealthcheckRoute = ApiKosyncHealthcheckRouteImport.update({
+  id: '/api/kosync/healthcheck',
+  path: '/api/kosync/healthcheck',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiCoversBookIdRoute = ApiCoversBookIdRouteImport.update({
+  id: '/api/covers/$bookId',
+  path: '/api/covers/$bookId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiBooksFileIdRoute = ApiBooksFileIdRouteImport.update({
+  id: '/api/books/$fileId',
+  path: '/api/books/$fileId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthedShelvesShelfIdRoute = AuthedShelvesShelfIdRouteImport.update({
+  id: '/shelves/$shelfId',
+  path: '/shelves/$shelfId',
+  getParentRoute: () => AuthedRoute,
+} as any)
+const AuthedSettingsUsersRoute = AuthedSettingsUsersRouteImport.update({
+  id: '/settings/users',
+  path: '/settings/users',
+  getParentRoute: () => AuthedRoute,
+} as any)
+const AuthedSettingsScanningRoute = AuthedSettingsScanningRouteImport.update({
+  id: '/settings/scanning',
+  path: '/settings/scanning',
+  getParentRoute: () => AuthedRoute,
+} as any)
+const AuthedSettingsLibrariesRoute = AuthedSettingsLibrariesRouteImport.update({
+  id: '/settings/libraries',
+  path: '/settings/libraries',
+  getParentRoute: () => AuthedRoute,
+} as any)
+const AuthedSettingsJobsRoute = AuthedSettingsJobsRouteImport.update({
+  id: '/settings/jobs',
+  path: '/settings/jobs',
+  getParentRoute: () => AuthedRoute,
+} as any)
+const AuthedSettingsGeneralRoute = AuthedSettingsGeneralRouteImport.update({
+  id: '/settings/general',
+  path: '/settings/general',
+  getParentRoute: () => AuthedRoute,
+} as any)
+const AuthedSeriesSeriesIdRoute = AuthedSeriesSeriesIdRouteImport.update({
+  id: '/series/$seriesId',
+  path: '/series/$seriesId',
+  getParentRoute: () => AuthedRoute,
+} as any)
+const AuthedReadingListsListIdRoute =
+  AuthedReadingListsListIdRouteImport.update({
+    id: '/reading-lists/$listId',
+    path: '/reading-lists/$listId',
+    getParentRoute: () => AuthedRoute,
+  } as any)
+const AuthedLibrariesLibraryIdRoute =
+  AuthedLibrariesLibraryIdRouteImport.update({
+    id: '/libraries/$libraryId',
+    path: '/libraries/$libraryId',
+    getParentRoute: () => AuthedRoute,
+  } as any)
+const AuthedCollectionsCollectionIdRoute =
+  AuthedCollectionsCollectionIdRouteImport.update({
+    id: '/collections/$collectionId',
+    path: '/collections/$collectionId',
+    getParentRoute: () => AuthedRoute,
+  } as any)
+const AuthedBooksBookIdRoute = AuthedBooksBookIdRouteImport.update({
+  id: '/books/$bookId',
+  path: '/books/$bookId',
+  getParentRoute: () => AuthedRoute,
+} as any)
+const AuthedAuthorsAuthorIdRoute = AuthedAuthorsAuthorIdRouteImport.update({
+  id: '/authors/$authorId',
+  path: '/authors/$authorId',
+  getParentRoute: () => AuthedRoute,
+} as any)
+const ApiKosyncUsersCreateRoute = ApiKosyncUsersCreateRouteImport.update({
+  id: '/api/kosync/users/create',
+  path: '/api/kosync/users/create',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiKosyncUsersAuthRoute = ApiKosyncUsersAuthRouteImport.update({
+  id: '/api/kosync/users/auth',
+  path: '/api/kosync/users/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiKosyncSyncsProgressRoute = ApiKosyncSyncsProgressRouteImport.update({
+  id: '/api/kosync/syncs/progress',
+  path: '/api/kosync/syncs/progress',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthedReadBookIdFileIdRoute = AuthedReadBookIdFileIdRouteImport.update({
+  id: '/read/$bookId/$fileId',
+  path: '/read/$bookId/$fileId',
+  getParentRoute: () => AuthedRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
+  '/': typeof AuthedIndexRoute
+  '/login': typeof LoginRoute
+  '/register': typeof RegisterRoute
+  '/search': typeof AuthedSearchRoute
+  '/authors/$authorId': typeof AuthedAuthorsAuthorIdRoute
+  '/books/$bookId': typeof AuthedBooksBookIdRoute
+  '/collections/$collectionId': typeof AuthedCollectionsCollectionIdRoute
+  '/libraries/$libraryId': typeof AuthedLibrariesLibraryIdRoute
+  '/reading-lists/$listId': typeof AuthedReadingListsListIdRoute
+  '/series/$seriesId': typeof AuthedSeriesSeriesIdRoute
+  '/settings/general': typeof AuthedSettingsGeneralRoute
+  '/settings/jobs': typeof AuthedSettingsJobsRoute
+  '/settings/libraries': typeof AuthedSettingsLibrariesRoute
+  '/settings/scanning': typeof AuthedSettingsScanningRoute
+  '/settings/users': typeof AuthedSettingsUsersRoute
+  '/shelves/$shelfId': typeof AuthedShelvesShelfIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/books/$fileId': typeof ApiBooksFileIdRoute
+  '/api/covers/$bookId': typeof ApiCoversBookIdRoute
+  '/api/kosync/healthcheck': typeof ApiKosyncHealthcheckRoute
+  '/read/$bookId/$fileId': typeof AuthedReadBookIdFileIdRoute
+  '/api/kosync/syncs/progress': typeof ApiKosyncSyncsProgressRoute
+  '/api/kosync/users/auth': typeof ApiKosyncUsersAuthRoute
+  '/api/kosync/users/create': typeof ApiKosyncUsersCreateRoute
 }
 export interface FileRoutesByTo {
+  '/login': typeof LoginRoute
+  '/register': typeof RegisterRoute
+  '/search': typeof AuthedSearchRoute
+  '/': typeof AuthedIndexRoute
+  '/authors/$authorId': typeof AuthedAuthorsAuthorIdRoute
+  '/books/$bookId': typeof AuthedBooksBookIdRoute
+  '/collections/$collectionId': typeof AuthedCollectionsCollectionIdRoute
+  '/libraries/$libraryId': typeof AuthedLibrariesLibraryIdRoute
+  '/reading-lists/$listId': typeof AuthedReadingListsListIdRoute
+  '/series/$seriesId': typeof AuthedSeriesSeriesIdRoute
+  '/settings/general': typeof AuthedSettingsGeneralRoute
+  '/settings/jobs': typeof AuthedSettingsJobsRoute
+  '/settings/libraries': typeof AuthedSettingsLibrariesRoute
+  '/settings/scanning': typeof AuthedSettingsScanningRoute
+  '/settings/users': typeof AuthedSettingsUsersRoute
+  '/shelves/$shelfId': typeof AuthedShelvesShelfIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/books/$fileId': typeof ApiBooksFileIdRoute
+  '/api/covers/$bookId': typeof ApiCoversBookIdRoute
+  '/api/kosync/healthcheck': typeof ApiKosyncHealthcheckRoute
+  '/read/$bookId/$fileId': typeof AuthedReadBookIdFileIdRoute
+  '/api/kosync/syncs/progress': typeof ApiKosyncSyncsProgressRoute
+  '/api/kosync/users/auth': typeof ApiKosyncUsersAuthRoute
+  '/api/kosync/users/create': typeof ApiKosyncUsersCreateRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
+  '/_authed': typeof AuthedRouteWithChildren
+  '/login': typeof LoginRoute
+  '/register': typeof RegisterRoute
+  '/_authed/search': typeof AuthedSearchRoute
+  '/_authed/': typeof AuthedIndexRoute
+  '/_authed/authors/$authorId': typeof AuthedAuthorsAuthorIdRoute
+  '/_authed/books/$bookId': typeof AuthedBooksBookIdRoute
+  '/_authed/collections/$collectionId': typeof AuthedCollectionsCollectionIdRoute
+  '/_authed/libraries/$libraryId': typeof AuthedLibrariesLibraryIdRoute
+  '/_authed/reading-lists/$listId': typeof AuthedReadingListsListIdRoute
+  '/_authed/series/$seriesId': typeof AuthedSeriesSeriesIdRoute
+  '/_authed/settings/general': typeof AuthedSettingsGeneralRoute
+  '/_authed/settings/jobs': typeof AuthedSettingsJobsRoute
+  '/_authed/settings/libraries': typeof AuthedSettingsLibrariesRoute
+  '/_authed/settings/scanning': typeof AuthedSettingsScanningRoute
+  '/_authed/settings/users': typeof AuthedSettingsUsersRoute
+  '/_authed/shelves/$shelfId': typeof AuthedShelvesShelfIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/books/$fileId': typeof ApiBooksFileIdRoute
+  '/api/covers/$bookId': typeof ApiCoversBookIdRoute
+  '/api/kosync/healthcheck': typeof ApiKosyncHealthcheckRoute
+  '/_authed/read/$bookId/$fileId': typeof AuthedReadBookIdFileIdRoute
+  '/api/kosync/syncs/progress': typeof ApiKosyncSyncsProgressRoute
+  '/api/kosync/users/auth': typeof ApiKosyncUsersAuthRoute
+  '/api/kosync/users/create': typeof ApiKosyncUsersCreateRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/api/auth/$'
+  fullPaths:
+    | '/'
+    | '/login'
+    | '/register'
+    | '/search'
+    | '/authors/$authorId'
+    | '/books/$bookId'
+    | '/collections/$collectionId'
+    | '/libraries/$libraryId'
+    | '/reading-lists/$listId'
+    | '/series/$seriesId'
+    | '/settings/general'
+    | '/settings/jobs'
+    | '/settings/libraries'
+    | '/settings/scanning'
+    | '/settings/users'
+    | '/shelves/$shelfId'
+    | '/api/auth/$'
+    | '/api/books/$fileId'
+    | '/api/covers/$bookId'
+    | '/api/kosync/healthcheck'
+    | '/read/$bookId/$fileId'
+    | '/api/kosync/syncs/progress'
+    | '/api/kosync/users/auth'
+    | '/api/kosync/users/create'
   fileRoutesByTo: FileRoutesByTo
-  to: '/api/auth/$'
-  id: '__root__' | '/api/auth/$'
+  to:
+    | '/login'
+    | '/register'
+    | '/search'
+    | '/'
+    | '/authors/$authorId'
+    | '/books/$bookId'
+    | '/collections/$collectionId'
+    | '/libraries/$libraryId'
+    | '/reading-lists/$listId'
+    | '/series/$seriesId'
+    | '/settings/general'
+    | '/settings/jobs'
+    | '/settings/libraries'
+    | '/settings/scanning'
+    | '/settings/users'
+    | '/shelves/$shelfId'
+    | '/api/auth/$'
+    | '/api/books/$fileId'
+    | '/api/covers/$bookId'
+    | '/api/kosync/healthcheck'
+    | '/read/$bookId/$fileId'
+    | '/api/kosync/syncs/progress'
+    | '/api/kosync/users/auth'
+    | '/api/kosync/users/create'
+  id:
+    | '__root__'
+    | '/_authed'
+    | '/login'
+    | '/register'
+    | '/_authed/search'
+    | '/_authed/'
+    | '/_authed/authors/$authorId'
+    | '/_authed/books/$bookId'
+    | '/_authed/collections/$collectionId'
+    | '/_authed/libraries/$libraryId'
+    | '/_authed/reading-lists/$listId'
+    | '/_authed/series/$seriesId'
+    | '/_authed/settings/general'
+    | '/_authed/settings/jobs'
+    | '/_authed/settings/libraries'
+    | '/_authed/settings/scanning'
+    | '/_authed/settings/users'
+    | '/_authed/shelves/$shelfId'
+    | '/api/auth/$'
+    | '/api/books/$fileId'
+    | '/api/covers/$bookId'
+    | '/api/kosync/healthcheck'
+    | '/_authed/read/$bookId/$fileId'
+    | '/api/kosync/syncs/progress'
+    | '/api/kosync/users/auth'
+    | '/api/kosync/users/create'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
+  AuthedRoute: typeof AuthedRouteWithChildren
+  LoginRoute: typeof LoginRoute
+  RegisterRoute: typeof RegisterRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
+  ApiBooksFileIdRoute: typeof ApiBooksFileIdRoute
+  ApiCoversBookIdRoute: typeof ApiCoversBookIdRoute
+  ApiKosyncHealthcheckRoute: typeof ApiKosyncHealthcheckRoute
+  ApiKosyncSyncsProgressRoute: typeof ApiKosyncSyncsProgressRoute
+  ApiKosyncUsersAuthRoute: typeof ApiKosyncUsersAuthRoute
+  ApiKosyncUsersCreateRoute: typeof ApiKosyncUsersCreateRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/register': {
+      id: '/register'
+      path: '/register'
+      fullPath: '/register'
+      preLoaderRoute: typeof RegisterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authed': {
+      id: '/_authed'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authed/': {
+      id: '/_authed/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof AuthedIndexRouteImport
+      parentRoute: typeof AuthedRoute
+    }
+    '/_authed/search': {
+      id: '/_authed/search'
+      path: '/search'
+      fullPath: '/search'
+      preLoaderRoute: typeof AuthedSearchRouteImport
+      parentRoute: typeof AuthedRoute
+    }
+    '/api/kosync/healthcheck': {
+      id: '/api/kosync/healthcheck'
+      path: '/api/kosync/healthcheck'
+      fullPath: '/api/kosync/healthcheck'
+      preLoaderRoute: typeof ApiKosyncHealthcheckRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/covers/$bookId': {
+      id: '/api/covers/$bookId'
+      path: '/api/covers/$bookId'
+      fullPath: '/api/covers/$bookId'
+      preLoaderRoute: typeof ApiCoversBookIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/books/$fileId': {
+      id: '/api/books/$fileId'
+      path: '/api/books/$fileId'
+      fullPath: '/api/books/$fileId'
+      preLoaderRoute: typeof ApiBooksFileIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/auth/$': {
       id: '/api/auth/$'
       path: '/api/auth/$'
@@ -48,11 +403,171 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authed/shelves/$shelfId': {
+      id: '/_authed/shelves/$shelfId'
+      path: '/shelves/$shelfId'
+      fullPath: '/shelves/$shelfId'
+      preLoaderRoute: typeof AuthedShelvesShelfIdRouteImport
+      parentRoute: typeof AuthedRoute
+    }
+    '/_authed/settings/users': {
+      id: '/_authed/settings/users'
+      path: '/settings/users'
+      fullPath: '/settings/users'
+      preLoaderRoute: typeof AuthedSettingsUsersRouteImport
+      parentRoute: typeof AuthedRoute
+    }
+    '/_authed/settings/scanning': {
+      id: '/_authed/settings/scanning'
+      path: '/settings/scanning'
+      fullPath: '/settings/scanning'
+      preLoaderRoute: typeof AuthedSettingsScanningRouteImport
+      parentRoute: typeof AuthedRoute
+    }
+    '/_authed/settings/libraries': {
+      id: '/_authed/settings/libraries'
+      path: '/settings/libraries'
+      fullPath: '/settings/libraries'
+      preLoaderRoute: typeof AuthedSettingsLibrariesRouteImport
+      parentRoute: typeof AuthedRoute
+    }
+    '/_authed/settings/jobs': {
+      id: '/_authed/settings/jobs'
+      path: '/settings/jobs'
+      fullPath: '/settings/jobs'
+      preLoaderRoute: typeof AuthedSettingsJobsRouteImport
+      parentRoute: typeof AuthedRoute
+    }
+    '/_authed/settings/general': {
+      id: '/_authed/settings/general'
+      path: '/settings/general'
+      fullPath: '/settings/general'
+      preLoaderRoute: typeof AuthedSettingsGeneralRouteImport
+      parentRoute: typeof AuthedRoute
+    }
+    '/_authed/series/$seriesId': {
+      id: '/_authed/series/$seriesId'
+      path: '/series/$seriesId'
+      fullPath: '/series/$seriesId'
+      preLoaderRoute: typeof AuthedSeriesSeriesIdRouteImport
+      parentRoute: typeof AuthedRoute
+    }
+    '/_authed/reading-lists/$listId': {
+      id: '/_authed/reading-lists/$listId'
+      path: '/reading-lists/$listId'
+      fullPath: '/reading-lists/$listId'
+      preLoaderRoute: typeof AuthedReadingListsListIdRouteImport
+      parentRoute: typeof AuthedRoute
+    }
+    '/_authed/libraries/$libraryId': {
+      id: '/_authed/libraries/$libraryId'
+      path: '/libraries/$libraryId'
+      fullPath: '/libraries/$libraryId'
+      preLoaderRoute: typeof AuthedLibrariesLibraryIdRouteImport
+      parentRoute: typeof AuthedRoute
+    }
+    '/_authed/collections/$collectionId': {
+      id: '/_authed/collections/$collectionId'
+      path: '/collections/$collectionId'
+      fullPath: '/collections/$collectionId'
+      preLoaderRoute: typeof AuthedCollectionsCollectionIdRouteImport
+      parentRoute: typeof AuthedRoute
+    }
+    '/_authed/books/$bookId': {
+      id: '/_authed/books/$bookId'
+      path: '/books/$bookId'
+      fullPath: '/books/$bookId'
+      preLoaderRoute: typeof AuthedBooksBookIdRouteImport
+      parentRoute: typeof AuthedRoute
+    }
+    '/_authed/authors/$authorId': {
+      id: '/_authed/authors/$authorId'
+      path: '/authors/$authorId'
+      fullPath: '/authors/$authorId'
+      preLoaderRoute: typeof AuthedAuthorsAuthorIdRouteImport
+      parentRoute: typeof AuthedRoute
+    }
+    '/api/kosync/users/create': {
+      id: '/api/kosync/users/create'
+      path: '/api/kosync/users/create'
+      fullPath: '/api/kosync/users/create'
+      preLoaderRoute: typeof ApiKosyncUsersCreateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/kosync/users/auth': {
+      id: '/api/kosync/users/auth'
+      path: '/api/kosync/users/auth'
+      fullPath: '/api/kosync/users/auth'
+      preLoaderRoute: typeof ApiKosyncUsersAuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/kosync/syncs/progress': {
+      id: '/api/kosync/syncs/progress'
+      path: '/api/kosync/syncs/progress'
+      fullPath: '/api/kosync/syncs/progress'
+      preLoaderRoute: typeof ApiKosyncSyncsProgressRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authed/read/$bookId/$fileId': {
+      id: '/_authed/read/$bookId/$fileId'
+      path: '/read/$bookId/$fileId'
+      fullPath: '/read/$bookId/$fileId'
+      preLoaderRoute: typeof AuthedReadBookIdFileIdRouteImport
+      parentRoute: typeof AuthedRoute
+    }
   }
 }
 
+interface AuthedRouteChildren {
+  AuthedSearchRoute: typeof AuthedSearchRoute
+  AuthedIndexRoute: typeof AuthedIndexRoute
+  AuthedAuthorsAuthorIdRoute: typeof AuthedAuthorsAuthorIdRoute
+  AuthedBooksBookIdRoute: typeof AuthedBooksBookIdRoute
+  AuthedCollectionsCollectionIdRoute: typeof AuthedCollectionsCollectionIdRoute
+  AuthedLibrariesLibraryIdRoute: typeof AuthedLibrariesLibraryIdRoute
+  AuthedReadingListsListIdRoute: typeof AuthedReadingListsListIdRoute
+  AuthedSeriesSeriesIdRoute: typeof AuthedSeriesSeriesIdRoute
+  AuthedSettingsGeneralRoute: typeof AuthedSettingsGeneralRoute
+  AuthedSettingsJobsRoute: typeof AuthedSettingsJobsRoute
+  AuthedSettingsLibrariesRoute: typeof AuthedSettingsLibrariesRoute
+  AuthedSettingsScanningRoute: typeof AuthedSettingsScanningRoute
+  AuthedSettingsUsersRoute: typeof AuthedSettingsUsersRoute
+  AuthedShelvesShelfIdRoute: typeof AuthedShelvesShelfIdRoute
+  AuthedReadBookIdFileIdRoute: typeof AuthedReadBookIdFileIdRoute
+}
+
+const AuthedRouteChildren: AuthedRouteChildren = {
+  AuthedSearchRoute: AuthedSearchRoute,
+  AuthedIndexRoute: AuthedIndexRoute,
+  AuthedAuthorsAuthorIdRoute: AuthedAuthorsAuthorIdRoute,
+  AuthedBooksBookIdRoute: AuthedBooksBookIdRoute,
+  AuthedCollectionsCollectionIdRoute: AuthedCollectionsCollectionIdRoute,
+  AuthedLibrariesLibraryIdRoute: AuthedLibrariesLibraryIdRoute,
+  AuthedReadingListsListIdRoute: AuthedReadingListsListIdRoute,
+  AuthedSeriesSeriesIdRoute: AuthedSeriesSeriesIdRoute,
+  AuthedSettingsGeneralRoute: AuthedSettingsGeneralRoute,
+  AuthedSettingsJobsRoute: AuthedSettingsJobsRoute,
+  AuthedSettingsLibrariesRoute: AuthedSettingsLibrariesRoute,
+  AuthedSettingsScanningRoute: AuthedSettingsScanningRoute,
+  AuthedSettingsUsersRoute: AuthedSettingsUsersRoute,
+  AuthedShelvesShelfIdRoute: AuthedShelvesShelfIdRoute,
+  AuthedReadBookIdFileIdRoute: AuthedReadBookIdFileIdRoute,
+}
+
+const AuthedRouteWithChildren =
+  AuthedRoute._addFileChildren(AuthedRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
+  AuthedRoute: AuthedRouteWithChildren,
+  LoginRoute: LoginRoute,
+  RegisterRoute: RegisterRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
+  ApiBooksFileIdRoute: ApiBooksFileIdRoute,
+  ApiCoversBookIdRoute: ApiCoversBookIdRoute,
+  ApiKosyncHealthcheckRoute: ApiKosyncHealthcheckRoute,
+  ApiKosyncSyncsProgressRoute: ApiKosyncSyncsProgressRoute,
+  ApiKosyncUsersAuthRoute: ApiKosyncUsersAuthRoute,
+  ApiKosyncUsersCreateRoute: ApiKosyncUsersCreateRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
