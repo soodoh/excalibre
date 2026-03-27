@@ -1,5 +1,23 @@
 import { z } from "zod";
 
+export const createShelfSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  type: z.enum(["smart", "manual"]),
+  filterRules: z.record(z.unknown()).optional(),
+});
+
+export const createCollectionSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+});
+
+export const createReadingListSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+});
+
+export type CreateShelfInput = z.infer<typeof createShelfSchema>;
+export type CreateCollectionInput = z.infer<typeof createCollectionSchema>;
+export type CreateReadingListInput = z.infer<typeof createReadingListSchema>;
+
 export const createLibrarySchema = z.object({
   name: z.string().min(1, "Name is required"),
   type: z.enum(["book", "comic", "manga"]),
