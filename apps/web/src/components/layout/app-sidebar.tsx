@@ -1,6 +1,7 @@
 import type { JSX } from "react";
 import { BookOpen, Home, Library, Settings } from "lucide-react";
 import { Link, useRouterState } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import { signOut, useSession } from "src/lib/auth-client";
 import {
   Sidebar,
@@ -15,11 +16,18 @@ import {
   SidebarMenuItem,
 } from "src/components/ui/sidebar";
 import { Button } from "src/components/ui/button";
+import { getLibrariesFn } from "src/server/libraries";
+import { queryKeys } from "src/lib/query-keys";
 
 export default function AppSidebar(): JSX.Element {
   const { data: session } = useSession();
   const routerState = useRouterState();
   const currentPath = routerState.location.pathname;
+
+  const { data: libraries } = useQuery({
+    queryKey: queryKeys.libraries.list(),
+    queryFn: async () => getLibrariesFn(),
+  });
 
   const handleSignOut = () => {
     void signOut();
@@ -54,11 +62,32 @@ export default function AppSidebar(): JSX.Element {
           <SidebarGroupLabel>Libraries</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              <SidebarMenuItem>
-                <div className="px-2 py-1 text-sm text-muted-foreground">
-                  <Library className="mb-1 inline size-4" /> No libraries yet
-                </div>
-              </SidebarMenuItem>
+              {libraries && libraries.length > 0 ? (
+                libraries.map((library) => (
+                  <SidebarMenuItem key={library.id}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={currentPath.startsWith(
+                        `/libraries/${library.id}`,
+                      )}
+                    >
+                      <Link
+                        to="/libraries/$libraryId"
+                        params={{ libraryId: String(library.id) }}
+                      >
+                        <Library className="size-4" />
+                        <span>{library.name}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))
+              ) : (
+                <SidebarMenuItem>
+                  <div className="px-2 py-1 text-sm text-muted-foreground">
+                    <Library className="mb-1 inline size-4" /> No libraries yet
+                  </div>
+                </SidebarMenuItem>
+              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
