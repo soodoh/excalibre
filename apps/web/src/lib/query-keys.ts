@@ -41,4 +41,9 @@ export const queryKeys = {
   scan: {
     status: (libraryId: number) => ["scan", "status", libraryId] as const,
   },
+  reading: {
+    progress: (bookId: number) => ["reading", "progress", bookId] as const,
+    annotations: (bookId: number) =>
+      ["reading", "annotations", bookId] as const,
+  },
 };
