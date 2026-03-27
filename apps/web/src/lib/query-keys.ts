@@ -1,4 +1,3 @@
-// oxlint-disable import/prefer-default-export
 export const queryKeys = {
   libraries: {
     all: ["libraries"] as const,
@@ -29,5 +28,8 @@ export const queryKeys = {
   jobs: {
     all: ["jobs"] as const,
     list: () => ["jobs", "list"] as const,
+  },
+  scan: {
+    status: (libraryId: number) => ["scan", "status", libraryId] as const,
   },
 };
