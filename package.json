@@ -11,8 +11,7 @@
     "build": "turbo build",
     "lint": "turbo lint",
     "lint:fix": "turbo lint:fix",
-    "lint-staged": "lint-staged",
-    "prepare": "husky",
+    "prepare": "lefthook install",
     "test": "turbo test"
   },
   "devDependencies": {
@@ -20,8 +19,6 @@
     "@commitlint/config-conventional": "^20.4.2",
     "@commitlint/types": "^20.4.0",
     "@standard-config/oxlint": "^1.2.0",
-    "husky": "^9.1.7",
-    "lint-staged": "^16.2.7",
     "oxlint": "^1.49.0",
     "oxlint-tsgolint": "^0.17.4",
     "prettier": "^3.8.1",

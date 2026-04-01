@@ -1,0 +1,17 @@
+pre-commit:
+  parallel: true
+  jobs:
+    - name: oxlint
+      glob: "*.{js,jsx,ts,tsx}"
+      run: bunx oxlint --fix --config oxlint.config.ts {staged_files}
+      stage_fixed: true
+
+    - name: prettier
+      glob: "*.{js,jsx,ts,tsx,css,html,json,md,mdx,yaml,yml}"
+      run: bunx prettier --write {staged_files}
+      stage_fixed: true
+
+commit-msg:
+  jobs:
+    - name: commitlint
+      run: bunx commitlint --edit {1}
