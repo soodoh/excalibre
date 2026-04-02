@@ -3,8 +3,8 @@
 
 // oxlint-disable-next-line typescript-eslint/no-extraneous-class
 export class Database {
-  constructor() {
-    throw new Error("bun:sqlite is not available in the browser");
-  }
+	constructor() {
+		throw new Error("bun:sqlite is not available in the browser");
+	}
 }
 export default Database;

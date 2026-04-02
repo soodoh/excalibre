@@ -1,6 +1,6 @@
+import { eq } from "drizzle-orm";
 import { db } from "src/db";
 import { bookFiles, user } from "src/db/schema";
-import { eq } from "drizzle-orm";
 
 /**
  * Authenticates a KOSync request using x-auth-user (email) and x-auth-key
@@ -9,39 +9,39 @@ import { eq } from "drizzle-orm";
  * on failure.
  */
 export async function authenticateKosync(
-  request: Request,
+	request: Request,
 ): Promise<typeof user.$inferSelect | null> {
-  const email = request.headers.get("x-auth-user");
-  const password = request.headers.get("x-auth-key");
+	const email = request.headers.get("x-auth-user");
+	const password = request.headers.get("x-auth-key");
 
-  if (!email || !password) {
-    return null;
-  }
+	if (!email || !password) {
+		return null;
+	}
 
-  // Verify credentials via better-auth's sign-in endpoint
-  const url = new URL(request.url);
-  const baseUrl = `${url.protocol}//${url.host}`;
+	// Verify credentials via better-auth's sign-in endpoint
+	const url = new URL(request.url);
+	const baseUrl = `${url.protocol}//${url.host}`;
 
-  try {
-    const response = await fetch(`${baseUrl}/api/auth/sign-in/email`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
+	try {
+		const response = await fetch(`${baseUrl}/api/auth/sign-in/email`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ email, password }),
+		});
 
-    if (!response.ok) {
-      return null;
-    }
-  } catch {
-    return null;
-  }
+		if (!response.ok) {
+			return null;
+		}
+	} catch {
+		return null;
+	}
 
-  // Fetch and return the user record
-  const userRecord = await db.query.user.findFirst({
-    where: eq(user.email, email),
-  });
+	// Fetch and return the user record
+	const userRecord = await db.query.user.findFirst({
+		where: eq(user.email, email),
+	});
 
-  return userRecord ?? null;
+	return userRecord ?? null;
 }
 
 /**
@@ -49,11 +49,11 @@ export async function authenticateKosync(
  * record or null.
  */
 export async function findBookByMd5(
-  md5Hash: string,
+	md5Hash: string,
 ): Promise<typeof bookFiles.$inferSelect | null> {
-  const record = await db.query.bookFiles.findFirst({
-    where: eq(bookFiles.md5Hash, md5Hash),
-  });
+	const record = await db.query.bookFiles.findFirst({
+		where: eq(bookFiles.md5Hash, md5Hash),
+	});
 
-  return record ?? null;
+	return record ?? null;
 }
