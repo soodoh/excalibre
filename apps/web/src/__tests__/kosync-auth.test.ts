@@ -224,8 +224,10 @@ describe("/api/kosync/users/create", () => {
 	});
 
 	test("returns the same generic success response whether the user exists or not", async () => {
-		const { Route } = await import("src/routes/api/kosync/users.create");
-		const existingUserResponse = await Route.options.server.handlers.POST({
+		const { handleKosyncUsersCreatePost } = await import(
+			"src/routes/api/kosync/users.create"
+		);
+		const existingUserResponse = await handleKosyncUsersCreatePost({
 			request: new Request("https://example.com/api/kosync/users/create", {
 				method: "POST",
 				body: JSON.stringify({
@@ -235,7 +237,7 @@ describe("/api/kosync/users/create", () => {
 			}),
 		});
 
-		const missingUserResponse = await Route.options.server.handlers.POST({
+		const missingUserResponse = await handleKosyncUsersCreatePost({
 			request: new Request("https://example.com/api/kosync/users/create", {
 				method: "POST",
 				body: JSON.stringify({
