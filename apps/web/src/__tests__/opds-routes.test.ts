@@ -20,6 +20,13 @@ vi.mock("src/server/opds", async () => {
 	};
 });
 
+function getLinkHref(xml: string, rel: string): string | undefined {
+	const match = xml.match(
+		new RegExp(`<link[^>]*rel="${rel}"[^>]*href="([^"]+)"`),
+	);
+	return match?.[1];
+}
+
 describe("OPDS route auth propagation", () => {
 	beforeEach(() => {
 		vi.resetAllMocks();
@@ -42,8 +49,8 @@ describe("OPDS route auth propagation", () => {
 
 		expect(response.status).toBe(200);
 		const xml = await response.text();
-		expect(xml).toContain(
-			'href="https://example.com/api/opds/recent?apikey=feed-key"',
+		expect(getLinkHref(xml, "self")).toBe(
+			"https://example.com/api/opds/recent?apikey=feed-key",
 		);
 	});
 
@@ -79,11 +86,11 @@ describe("OPDS route auth propagation", () => {
 
 		expect(response.status).toBe(200);
 		const xml = await response.text();
-		expect(xml).toContain(
-			'rel="previous" href="https://example.com/api/opds/all?page=0&amp;apikey=feed-key"',
+		expect(getLinkHref(xml, "previous")).toBe(
+			"https://example.com/api/opds/all?page=0&amp;apikey=feed-key",
 		);
-		expect(xml).toContain(
-			'rel="next" href="https://example.com/api/opds/all?page=2&amp;apikey=feed-key"',
+		expect(getLinkHref(xml, "next")).toBe(
+			"https://example.com/api/opds/all?page=2&amp;apikey=feed-key",
 		);
 	});
 });

@@ -1,18 +1,22 @@
-import { eq, inArray } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db } from "src/db";
 import type { bookFiles, books } from "src/db/schema";
-import { libraries, libraryAccess, opdsKeys, user } from "src/db/schema";
+import { opdsKeys, user } from "src/db/schema";
+import {
+	getAccessibleLibraries,
+	getAccessibleLibraryIds,
+} from "src/server/access-control";
+import {
+	appendRequestAuthToUrl,
+	type RequestAuth,
+} from "src/server/request-auth";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 type BookRecord = typeof books.$inferSelect;
 type BookFileRecord = typeof bookFiles.$inferSelect;
 type AuthorRecord = { id: number; name: string; role: string };
-type LibraryRecord = typeof libraries.$inferSelect;
-
-export type OpdsAuthResult = {
-	userId: string;
-};
+type OpdsAuthResult = Extract<RequestAuth, { mode: "opds" }>;
 
 // ─── MIME types ───────────────────────────────────────────────────────────────
 
@@ -41,7 +45,7 @@ export async function authenticateOpds(
 			where: eq(opdsKeys.apiKey, apiKey),
 		});
 		if (keyRecord) {
-			return { userId: keyRecord.userId };
+			return { mode: "opds", userId: keyRecord.userId, apiKey };
 		}
 		return null;
 	}
@@ -93,7 +97,7 @@ export async function authenticateOpds(
 			return null;
 		}
 
-		return { userId: userRecord.id };
+		return { mode: "opds", userId: userRecord.id };
 	}
 
 	return null;
@@ -128,9 +132,27 @@ export function opdsHeader(
 	title: string,
 	selfHref: string,
 	baseUrl: string,
+	requestAuth?: RequestAuth,
 	updated?: Date,
 ): string {
 	const updatedStr = (updated ?? new Date()).toISOString();
+	const authorizedSelfHref = requestAuth
+		? appendRequestAuthToUrl(selfHref, requestAuth)
+		: selfHref;
+	const startHref = appendRequestAuthToUrl(
+		`${baseUrl}/api/opds`,
+		requestAuth ?? {
+			mode: "session",
+			userId: "",
+		},
+	);
+	const searchHref = appendRequestAuthToUrl(
+		`${baseUrl}/api/opds/search/xml`,
+		requestAuth ?? {
+			mode: "session",
+			userId: "",
+		},
+	);
 	return `<?xml version="1.0" encoding="UTF-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom"
       xmlns:opds="http://opds-spec.org/2010/catalog"
@@ -142,9 +164,9 @@ export function opdsHeader(
   <author>
     <name>Excalibre</name>
   </author>
-  <link rel="self" href="${escapeXml(selfHref)}" type="application/atom+xml; profile=opds-catalog; kind=navigation"/>
-  <link rel="start" href="${escapeXml(baseUrl)}/api/opds" type="application/atom+xml; profile=opds-catalog; kind=navigation"/>
-  <link rel="search" href="${escapeXml(baseUrl)}/api/opds/search/xml" type="application/opensearchdescription+xml"/>
+  <link rel="self" href="${escapeXml(authorizedSelfHref)}" type="application/atom+xml; profile=opds-catalog; kind=navigation"/>
+  <link rel="start" href="${escapeXml(startHref)}" type="application/atom+xml; profile=opds-catalog; kind=navigation"/>
+  <link rel="search" href="${escapeXml(searchHref)}" type="application/opensearchdescription+xml"/>
 `;
 }
 
@@ -156,16 +178,20 @@ export function opdsNavigationEntry(
 	id: string,
 	title: string,
 	href: string,
+	requestAuth?: RequestAuth,
 	content?: string,
 ): string {
 	const contentEl = content
 		? `  <content type="text">${escapeXml(content)}</content>\n`
 		: "";
+	const authorizedHref = requestAuth
+		? appendRequestAuthToUrl(href, requestAuth)
+		: href;
 	return `  <entry>
     <id>${escapeXml(id)}</id>
     <title>${escapeXml(title)}</title>
     <updated>${new Date().toISOString()}</updated>
-${contentEl}    <link rel="subsection" href="${escapeXml(href)}" type="application/atom+xml; profile=opds-catalog; kind=acquisition"/>
+${contentEl}    <link rel="subsection" href="${escapeXml(authorizedHref)}" type="application/atom+xml; profile=opds-catalog; kind=acquisition"/>
   </entry>
 `;
 }
@@ -175,6 +201,7 @@ export function opdsBookEntry(
 	files: BookFileRecord[],
 	bookAuthors: AuthorRecord[],
 	baseUrl: string,
+	requestAuth?: RequestAuth,
 ): string {
 	const authorsXml = bookAuthors
 		.map((a) => `    <author><name>${escapeXml(a.name)}</name></author>`)
@@ -190,21 +217,33 @@ export function opdsBookEntry(
 		? `    <summary>${escapeXml(book.description)}</summary>\n`
 		: "";
 
+	const coverUrl = requestAuth
+		? appendRequestAuthToUrl(`${baseUrl}/api/covers/${book.id}`, requestAuth)
+		: `${baseUrl}/api/covers/${book.id}`;
 	const coverEl = book.coverPath
-		? `    <link rel="http://opds-spec.org/image" href="${escapeXml(baseUrl)}/api/covers/${book.id}" type="image/jpeg"/>\n    <link rel="http://opds-spec.org/image/thumbnail" href="${escapeXml(baseUrl)}/api/covers/${book.id}" type="image/jpeg"/>\n`
+		? `    <link rel="http://opds-spec.org/image" href="${escapeXml(coverUrl)}" type="image/jpeg"/>\n    <link rel="http://opds-spec.org/image/thumbnail" href="${escapeXml(coverUrl)}" type="image/jpeg"/>\n`
 		: "";
 
 	const acquisitionLinks = files
 		.map((f) => {
 			const fmt = f.format.toLowerCase();
 			const mimeType = BOOK_MIME_TYPES[fmt] ?? "application/octet-stream";
+			const acquisitionUrl = requestAuth
+				? appendRequestAuthToUrl(`${baseUrl}/api/books/${f.id}`, requestAuth)
+				: `${baseUrl}/api/books/${f.id}`;
+			const pageStreamUrl = requestAuth
+				? appendRequestAuthToUrl(
+						`${baseUrl}/api/opds/pse/${book.id}/{pageNumber}`,
+						requestAuth,
+					)
+				: `${baseUrl}/api/opds/pse/${book.id}/{pageNumber}`;
 
 			if (fmt === "cbz" && book.pageCount) {
-				return `    <link rel="http://opds-spec.org/acquisition/open-access" href="${escapeXml(baseUrl)}/api/books/${f.id}" type="${mimeType}"/>
-    <link rel="http://vaemendis.net/opds-pse/stream" href="${escapeXml(baseUrl)}/api/opds/pse/${book.id}/{pageNumber}" type="image/jpeg" pse:count="${book.pageCount}"/>`;
+				return `    <link rel="http://opds-spec.org/acquisition/open-access" href="${escapeXml(acquisitionUrl)}" type="${mimeType}"/>
+    <link rel="http://vaemendis.net/opds-pse/stream" href="${escapeXml(pageStreamUrl)}" type="image/jpeg" pse:count="${book.pageCount}"/>`;
 			}
 
-			return `    <link rel="http://opds-spec.org/acquisition/open-access" href="${escapeXml(baseUrl)}/api/books/${f.id}" type="${mimeType}"/>`;
+			return `    <link rel="http://opds-spec.org/acquisition/open-access" href="${escapeXml(acquisitionUrl)}" type="${mimeType}"/>`;
 		})
 		.join("\n");
 
@@ -217,37 +256,4 @@ ${authorsXml ? `${authorsXml}\n` : ""}${languageEl}${publisherEl}${summaryEl}${c
 `;
 }
 
-// ─── Accessible libraries helper ──────────────────────────────────────────────
-
-export async function getAccessibleLibraries(
-	userId: string,
-): Promise<LibraryRecord[]> {
-	// Check if user is admin
-	const userRecord = await db.query.user.findFirst({
-		where: eq(user.id, userId),
-		columns: { role: true },
-	});
-
-	if (userRecord?.role === "admin") {
-		return db.select().from(libraries);
-	}
-
-	const access = await db
-		.select({ libraryId: libraryAccess.libraryId })
-		.from(libraryAccess)
-		.where(eq(libraryAccess.userId, userId));
-
-	if (access.length === 0) {
-		return [];
-	}
-
-	const ids = access.map((a) => a.libraryId);
-	return db.select().from(libraries).where(inArray(libraries.id, ids));
-}
-
-export async function getAccessibleLibraryIds(
-	userId: string,
-): Promise<number[]> {
-	const libs = await getAccessibleLibraries(userId);
-	return libs.map((l) => l.id);
-}
+export { getAccessibleLibraries, getAccessibleLibraryIds };

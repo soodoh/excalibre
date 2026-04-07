@@ -18,6 +18,7 @@ import {
 	opdsHeader,
 	opdsXmlResponse,
 } from "src/server/opds";
+import { appendRequestAuthToUrl } from "src/server/request-auth";
 
 const PAGE_SIZE = 50;
 
@@ -120,19 +121,28 @@ export const Route = createFileRoute("/api/opds/libraries/$libraryId")({
 					library.name,
 					selfHref,
 					baseUrl,
+					auth,
 				);
 
 				if (page > 0) {
-					xml += `  <link rel="previous" href="${escapeXml(`${baseUrl}/api/opds/libraries/${libraryId}?page=${page - 1}`)}" type="application/atom+xml; profile=opds-catalog; kind=acquisition"/>\n`;
+					const previousHref = appendRequestAuthToUrl(
+						`${baseUrl}/api/opds/libraries/${libraryId}?page=${page - 1}`,
+						auth,
+					);
+					xml += `  <link rel="previous" href="${escapeXml(previousHref)}" type="application/atom+xml; profile=opds-catalog; kind=acquisition"/>\n`;
 				}
 				if (hasMore) {
-					xml += `  <link rel="next" href="${escapeXml(`${baseUrl}/api/opds/libraries/${libraryId}?page=${page + 1}`)}" type="application/atom+xml; profile=opds-catalog; kind=acquisition"/>\n`;
+					const nextHref = appendRequestAuthToUrl(
+						`${baseUrl}/api/opds/libraries/${libraryId}?page=${page + 1}`,
+						auth,
+					);
+					xml += `  <link rel="next" href="${escapeXml(nextHref)}" type="application/atom+xml; profile=opds-catalog; kind=acquisition"/>\n`;
 				}
 
 				for (const book of bookRows) {
 					const files = allFiles.filter((f) => f.bookId === book.id);
 					const bookAuthors = allAuthorRows.filter((a) => a.bookId === book.id);
-					xml += opdsBookEntry(book, files, bookAuthors, baseUrl);
+					xml += opdsBookEntry(book, files, bookAuthors, baseUrl, auth);
 				}
 
 				xml += opdsFooter();
