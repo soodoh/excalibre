@@ -2,7 +2,9 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 
 const eqMock = vi.fn((field: unknown, value: unknown) => ({ field, value }));
 const userFindFirst = vi.fn();
+const accountFindMany = vi.fn();
 const signInEmail = vi.fn();
+const verifyPassword = vi.fn();
 const fetchMock = vi.fn(() => Promise.reject(new Error("unexpected fetch")));
 
 vi.mock("drizzle-orm", () => ({
@@ -15,19 +17,24 @@ vi.mock("src/db", () => ({
 			user: {
 				findFirst: userFindFirst,
 			},
+			account: {
+				findMany: accountFindMany,
+			},
 		},
 	},
 }));
 
-vi.mock("src/lib/auth", async () => {
-	return {
-		auth: {
-			api: {
-				signInEmail,
-			},
+vi.mock("better-auth/crypto", () => ({
+	verifyPassword,
+}));
+
+vi.mock("src/lib/auth", () => ({
+	auth: {
+		api: {
+			signInEmail,
 		},
-	};
-});
+	},
+}));
 
 describe("authenticateKosync", () => {
 	beforeEach(() => {
@@ -35,10 +42,10 @@ describe("authenticateKosync", () => {
 		vi.stubGlobal("fetch", fetchMock);
 	});
 
-	test("uses Better Auth signInEmail for header auth without calling fetch", async () => {
+	test("uses stateless password verification for header auth without calling fetch", async () => {
 		userFindFirst.mockImplementation(
 			({ where }: { where: { value: string } }) =>
-				where.value === "user-1"
+				where.value === "reader@example.com"
 					? {
 							id: "user-1",
 							email: "reader@example.com",
@@ -50,15 +57,21 @@ describe("authenticateKosync", () => {
 						}
 					: null,
 		);
-		signInEmail.mockResolvedValueOnce({
-			redirect: false,
-			token: "session-token",
-			url: undefined,
-			user: {
-				id: "user-1",
-				email: "reader@example.com",
-			},
-		});
+		accountFindMany.mockImplementation(
+			({ where }: { where: { value: string } }) =>
+				where.value === "user-1"
+					? [
+							{
+								id: "account-1",
+								accountId: "user-1",
+								providerId: "credential",
+								userId: "user-1",
+								password: "hashed-password",
+							},
+						]
+					: [],
+		);
+		verifyPassword.mockResolvedValueOnce(true);
 
 		const { authenticateKosync } = await import("src/server/kosync");
 		const request = new Request("https://example.com/api/kosync/users/auth", {
@@ -77,20 +90,39 @@ describe("authenticateKosync", () => {
 			createdAt: new Date("2026-04-07T00:00:00.000Z"),
 			updatedAt: new Date("2026-04-07T00:00:00.000Z"),
 		});
-		expect(signInEmail).toHaveBeenCalledWith(
-			expect.objectContaining({
-				body: {
-					email: "Reader@Example.com",
-					password: "correct-horse",
-				},
-			}),
+		expect(eqMock).toHaveBeenCalledWith(
+			expect.anything(),
+			"reader@example.com",
 		);
 		expect(eqMock).toHaveBeenCalledWith(expect.anything(), "user-1");
+		expect(verifyPassword).toHaveBeenCalledWith({
+			hash: "hashed-password",
+			password: "correct-horse",
+		});
+		expect(signInEmail).not.toHaveBeenCalled();
 		expect(fetchMock).not.toHaveBeenCalled();
 	});
 
 	test("returns null for invalid header auth without calling fetch", async () => {
-		signInEmail.mockRejectedValueOnce(new Error("invalid credentials"));
+		userFindFirst.mockResolvedValueOnce({
+			id: "user-1",
+			email: "reader@example.com",
+			name: "Reader",
+			image: null,
+			role: "reader",
+			createdAt: new Date("2026-04-07T00:00:00.000Z"),
+			updatedAt: new Date("2026-04-07T00:00:00.000Z"),
+		});
+		accountFindMany.mockResolvedValueOnce([
+			{
+				id: "account-1",
+				accountId: "user-1",
+				providerId: "credential",
+				userId: "user-1",
+				password: "hashed-password",
+			},
+		]);
+		verifyPassword.mockResolvedValueOnce(false);
 
 		const { authenticateKosync } = await import("src/server/kosync");
 		const request = new Request("https://example.com/api/kosync/users/auth", {
@@ -101,6 +133,11 @@ describe("authenticateKosync", () => {
 		});
 
 		await expect(authenticateKosync(request)).resolves.toBeNull();
+		expect(verifyPassword).toHaveBeenCalledWith({
+			hash: "hashed-password",
+			password: "wrong-password",
+		});
+		expect(signInEmail).not.toHaveBeenCalled();
 		expect(fetchMock).not.toHaveBeenCalled();
 	});
 });

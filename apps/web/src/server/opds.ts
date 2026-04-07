@@ -2,11 +2,11 @@ import { eq } from "drizzle-orm";
 import { db } from "src/db";
 import type { bookFiles, books } from "src/db/schema";
 import { opdsKeys } from "src/db/schema";
-import { auth } from "src/lib/auth";
 import {
 	getAccessibleLibraries,
 	getAccessibleLibraryIds,
 } from "src/server/access-control";
+import { verifyStatelessCredentials } from "src/server/kosync";
 import {
 	appendRequestAuthToUrl,
 	type RequestAuth,
@@ -74,20 +74,9 @@ export async function authenticateOpds(
 			return null;
 		}
 
-		try {
-			const result = await auth.api.signInEmail({
-				body: { email, password },
-				headers: request.headers,
-				request,
-			});
-
-			if (!result.user?.id) {
-				return null;
-			}
-
-			return { mode: "opds", userId: result.user.id };
-		} catch {
-			return null;
+		const userRecord = await verifyStatelessCredentials(email, password);
+		if (userRecord) {
+			return { mode: "opds", userId: userRecord.id };
 		}
 	}
 

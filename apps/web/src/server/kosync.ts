@@ -1,13 +1,49 @@
+import { verifyPassword } from "better-auth/crypto";
 import { eq } from "drizzle-orm";
 import { db } from "src/db";
-import { bookFiles, user } from "src/db/schema";
-import { auth } from "src/lib/auth";
+import { account, bookFiles, user } from "src/db/schema";
+
+/**
+ * Verifies a username/password pair against the canonical Better Auth user
+ * record without creating a session.
+ */
+export async function verifyStatelessCredentials(
+	email: string,
+	password: string,
+): Promise<typeof user.$inferSelect | null> {
+	const normalizedEmail = email.trim().toLowerCase();
+
+	const userRecord = await db.query.user.findFirst({
+		where: eq(user.email, normalizedEmail),
+	});
+
+	if (!userRecord) {
+		return null;
+	}
+
+	const credentialAccounts = await db.query.account.findMany({
+		where: eq(account.userId, userRecord.id),
+	});
+
+	const credentialAccount = credentialAccounts.find(
+		(record) => record.providerId === "credential" && record.password,
+	);
+
+	if (!credentialAccount?.password) {
+		return null;
+	}
+
+	const isValid = await verifyPassword({
+		hash: credentialAccount.password,
+		password,
+	});
+
+	return isValid ? userRecord : null;
+}
 
 /**
  * Authenticates a KOSync request using x-auth-user (email) and x-auth-key
- * (password) headers. We verify credentials by calling better-auth's
- * sign-in endpoint internally. Returns the user record on success, or null
- * on failure.
+ * (password) headers. Credential verification is stateless.
  */
 export async function authenticateKosync(
 	request: Request,
@@ -19,28 +55,7 @@ export async function authenticateKosync(
 		return null;
 	}
 
-	try {
-		const result = await auth.api.signInEmail({
-			body: { email, password },
-			headers: request.headers,
-			request,
-		});
-
-		const authenticatedUserId = result.user?.id;
-		if (!authenticatedUserId) {
-			return null;
-		}
-
-		// Resolve the canonical user record by Better Auth's user id so email
-		// normalization does not affect downstream lookups.
-		const userRecord = await db.query.user.findFirst({
-			where: eq(user.id, authenticatedUserId),
-		});
-
-		return userRecord ?? null;
-	} catch {
-		return null;
-	}
+	return verifyStatelessCredentials(email, password);
 }
 
 /**
