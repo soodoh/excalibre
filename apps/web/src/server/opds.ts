@@ -1,7 +1,8 @@
 import { eq } from "drizzle-orm";
 import { db } from "src/db";
 import type { bookFiles, books } from "src/db/schema";
-import { opdsKeys, user } from "src/db/schema";
+import { opdsKeys } from "src/db/schema";
+import { auth } from "src/lib/auth";
 import {
 	getAccessibleLibraries,
 	getAccessibleLibraryIds,
@@ -73,31 +74,21 @@ export async function authenticateOpds(
 			return null;
 		}
 
-		const baseUrl = `${url.protocol}//${url.host}`;
 		try {
-			const response = await fetch(`${baseUrl}/api/auth/sign-in/email`, {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ email, password }),
+			const result = await auth.api.signInEmail({
+				body: { email, password },
+				headers: request.headers,
+				request,
 			});
 
-			if (!response.ok) {
+			if (!result.user?.id) {
 				return null;
 			}
+
+			return { mode: "opds", userId: result.user.id };
 		} catch {
 			return null;
 		}
-
-		const userRecord = await db.query.user.findFirst({
-			where: eq(user.email, email),
-			columns: { id: true },
-		});
-
-		if (!userRecord) {
-			return null;
-		}
-
-		return { mode: "opds", userId: userRecord.id };
 	}
 
 	return null;

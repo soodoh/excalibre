@@ -1,7 +1,4 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { eq } from "drizzle-orm";
-import { db } from "src/db";
-import { user } from "src/db/schema";
 
 type CreateUserBody = {
 	username?: string;
@@ -30,20 +27,11 @@ export const Route = createFileRoute("/api/kosync/users/create")({
 					);
 				}
 
-				const existingUser = await db.query.user.findFirst({
-					where: eq(user.email, email),
-				});
-
-				if (existingUser) {
-					return Response.json({ username: email }, { status: 201 });
-				}
-
 				return Response.json(
 					{
-						message:
-							"Username not found. Register at the Excalibre web UI first.",
+						message: "Registration is disabled after initial setup.",
 					},
-					{ status: 402 },
+					{ status: 403 },
 				);
 			},
 		},

@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { db } from "src/db";
 import { bookFiles, user } from "src/db/schema";
+import { auth } from "src/lib/auth";
 
 /**
  * Authenticates a KOSync request using x-auth-user (email) and x-auth-key
@@ -18,18 +19,14 @@ export async function authenticateKosync(
 		return null;
 	}
 
-	// Verify credentials via better-auth's sign-in endpoint
-	const url = new URL(request.url);
-	const baseUrl = `${url.protocol}//${url.host}`;
-
 	try {
-		const response = await fetch(`${baseUrl}/api/auth/sign-in/email`, {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ email, password }),
+		const result = await auth.api.signInEmail({
+			body: { email, password },
+			headers: request.headers,
+			request,
 		});
 
-		if (!response.ok) {
+		if (!result.user?.email) {
 			return null;
 		}
 	} catch {
