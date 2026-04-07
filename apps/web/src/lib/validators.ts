@@ -1,27 +1,5 @@
+import { isValidLibraryScanPath } from "src/server/path-safety";
 import { z } from "zod";
-
-function isValidLibraryScanPath(scanPath: string): boolean {
-	if (/^([a-zA-Z]:[\\/]|\\\\|\/)/.test(scanPath)) {
-		return false;
-	}
-
-	let depth = 0;
-	for (const segment of scanPath.split(/[\\/]+/)) {
-		if (segment.length === 0 || segment === ".") {
-			continue;
-		}
-		if (segment === "..") {
-			if (depth === 0) {
-				return false;
-			}
-			depth -= 1;
-			continue;
-		}
-		depth += 1;
-	}
-
-	return true;
-}
 
 export const createShelfSchema = z.object({
 	name: z.string().min(1, "Name is required"),
