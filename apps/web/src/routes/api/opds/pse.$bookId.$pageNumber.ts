@@ -72,7 +72,13 @@ export async function handleOpdsPseRequest({
 			return new Response("File not found on disk", { status: 404 });
 		}
 
-		const zip = new AdmZip(cbzFile.filePath);
+		let zip: AdmZip;
+		try {
+			zip = new AdmZip(cbzFile.filePath);
+		} catch {
+			return new Response("Failed to open CBZ file", { status: 500 });
+		}
+
 		const imageEntries = zip
 			.getEntries()
 			.filter((e) => {
@@ -92,7 +98,13 @@ export async function handleOpdsPseRequest({
 
 		const ext = path.extname(entry.entryName).slice(1).toLowerCase();
 		const contentType = getImageMimeType(ext);
-		const raw = entry.getData();
+		let raw: Buffer;
+		try {
+			raw = entry.getData();
+		} catch {
+			return new Response("Failed to extract page", { status: 500 });
+		}
+
 		const data = raw.buffer.slice(
 			raw.byteOffset,
 			raw.byteOffset + raw.byteLength,

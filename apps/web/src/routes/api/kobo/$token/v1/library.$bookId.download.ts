@@ -70,7 +70,7 @@ export async function handleKoboLibraryDownloadRequest({
 		});
 	} catch (error) {
 		return (
-			responseFromHttpError(error) ??
+			responseFromHttpError(error, { asJsonError: true }) ??
 			new Response("Internal Server Error", { status: 500 })
 		);
 	}

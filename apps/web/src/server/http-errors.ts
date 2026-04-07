@@ -29,8 +29,19 @@ export class NotFoundError extends HttpError {
 	}
 }
 
-export function responseFromHttpError(error: unknown): Response | null {
+type ResponseFromHttpErrorOptions = {
+	asJsonError?: boolean;
+};
+
+export function responseFromHttpError(
+	error: unknown,
+	options?: ResponseFromHttpErrorOptions,
+): Response | null {
 	if (error instanceof HttpError) {
+		if (options?.asJsonError) {
+			return Response.json({ error: error.message }, { status: error.status });
+		}
+
 		return new Response(error.message, { status: error.status });
 	}
 

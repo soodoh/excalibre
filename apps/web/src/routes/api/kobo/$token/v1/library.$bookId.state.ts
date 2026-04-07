@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { and, eq } from "drizzle-orm";
 import { db } from "src/db";
-import { books, readingProgress } from "src/db/schema";
+import { readingProgress } from "src/db/schema";
 import { assertUserCanAccessBook } from "src/server/access-control";
 import { responseFromHttpError } from "src/server/http-errors";
 import { authenticateKobo, buildReadingState } from "src/server/kobo";
@@ -37,15 +37,6 @@ export async function handleKoboLibraryStateGetRequest({
 
 		await assertUserCanAccessBook(auth.userId, bookId);
 
-		const book = await db.query.books.findFirst({
-			where: eq(books.id, bookId),
-			columns: { id: true },
-		});
-
-		if (!book) {
-			return Response.json({ error: "Not found" }, { status: 404 });
-		}
-
 		const progress = await db.query.readingProgress.findFirst({
 			where: and(
 				eq(readingProgress.userId, auth.userId),
@@ -58,7 +49,7 @@ export async function handleKoboLibraryStateGetRequest({
 		return Response.json([state]);
 	} catch (error) {
 		return (
-			responseFromHttpError(error) ??
+			responseFromHttpError(error, { asJsonError: true }) ??
 			new Response("Internal Server Error", { status: 500 })
 		);
 	}
@@ -83,15 +74,6 @@ export async function handleKoboLibraryStatePutRequest({
 		}
 
 		await assertUserCanAccessBook(auth.userId, bookId);
-
-		const book = await db.query.books.findFirst({
-			where: eq(books.id, bookId),
-			columns: { id: true },
-		});
-
-		if (!book) {
-			return Response.json({ error: "Not found" }, { status: 404 });
-		}
 
 		let body: ReadingStateBody;
 		try {
@@ -153,7 +135,7 @@ export async function handleKoboLibraryStatePutRequest({
 		});
 	} catch (error) {
 		return (
-			responseFromHttpError(error) ??
+			responseFromHttpError(error, { asJsonError: true }) ??
 			new Response("Internal Server Error", { status: 500 })
 		);
 	}

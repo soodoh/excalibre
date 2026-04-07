@@ -4,8 +4,39 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 const authenticateKobo = vi.fn();
 const authenticateOpds = vi.fn();
 const assertUserCanAccessBook = vi.fn();
+const findManyBookFiles = vi.fn();
+const findFirstBookFile = vi.fn();
+const findFirstBook = vi.fn();
+const findFirstReadingProgress = vi.fn();
+const existsSync = vi.fn();
+const readFileSync = vi.fn();
+const admZipCtor = vi.fn();
 
-vi.mock("src/db", () => ({ db: {} }));
+vi.mock("node:fs", () => ({
+	existsSync,
+	readFileSync,
+}));
+
+vi.mock("adm-zip", () => ({
+	default: admZipCtor,
+}));
+
+vi.mock("src/db", () => ({
+	db: {
+		query: {
+			bookFiles: {
+				findMany: findManyBookFiles,
+				findFirst: findFirstBookFile,
+			},
+			books: {
+				findFirst: findFirstBook,
+			},
+			readingProgress: {
+				findFirst: findFirstReadingProgress,
+			},
+		},
+	},
+}));
 
 vi.mock("src/server/access-control", () => ({
 	assertUserCanAccessBook,
@@ -42,6 +73,7 @@ describe("asset route access failures", () => {
 		});
 
 		expect(response.status).toBe(403);
+		await expect(response.json()).resolves.toEqual({ error: "Forbidden" });
 	});
 
 	test("kobo state GET returns 403 instead of 500", async () => {
@@ -55,6 +87,7 @@ describe("asset route access failures", () => {
 		});
 
 		expect(response.status).toBe(403);
+		await expect(response.json()).resolves.toEqual({ error: "Forbidden" });
 	});
 
 	test("kobo state PUT returns 403 instead of 500", async () => {
@@ -73,6 +106,7 @@ describe("asset route access failures", () => {
 		});
 
 		expect(response.status).toBe(403);
+		await expect(response.json()).resolves.toEqual({ error: "Forbidden" });
 	});
 
 	test("opds pse returns 403 instead of 500", async () => {
@@ -93,5 +127,81 @@ describe("asset route access failures", () => {
 		});
 
 		expect(response.status).toBe(403);
+	});
+
+	test("opds pse preserves specific 500 message when CBZ open fails", async () => {
+		authenticateOpds.mockResolvedValue({
+			mode: "opds",
+			userId: "user-1",
+			apiKey: "feed-key",
+		});
+		assertUserCanAccessBook.mockResolvedValue({ id: 12, libraryId: 1 });
+		findFirstBookFile.mockResolvedValue({
+			id: 1,
+			bookId: 12,
+			format: "cbz",
+			filePath: "/tmp/book.cbz",
+		});
+		existsSync.mockReturnValue(true);
+		admZipCtor.mockImplementation(function MockAdmZip() {
+			throw new Error("zip open failed");
+		});
+
+		const { handleOpdsPseRequest } = await import(
+			"src/routes/api/opds/pse.$bookId.$pageNumber"
+		);
+
+		const response = await handleOpdsPseRequest({
+			request: new Request(
+				"https://example.com/api/opds/pse/12/0?apikey=feed-key",
+			),
+			params: { bookId: "12", pageNumber: "0" },
+		});
+
+		expect(response.status).toBe(500);
+		await expect(response.text()).resolves.toBe("Failed to open CBZ file");
+	});
+
+	test("opds pse preserves specific 500 message when page extraction fails", async () => {
+		authenticateOpds.mockResolvedValue({
+			mode: "opds",
+			userId: "user-1",
+			apiKey: "feed-key",
+		});
+		assertUserCanAccessBook.mockResolvedValue({ id: 12, libraryId: 1 });
+		findFirstBookFile.mockResolvedValue({
+			id: 1,
+			bookId: 12,
+			format: "cbz",
+			filePath: "/tmp/book.cbz",
+		});
+		existsSync.mockReturnValue(true);
+		admZipCtor.mockImplementation(function MockAdmZip() {
+			return {
+				getEntries: () => [
+					{
+						entryName: "0001.jpg",
+						isDirectory: false,
+						getData: () => {
+							throw new Error("extract failed");
+						},
+					},
+				],
+			};
+		});
+
+		const { handleOpdsPseRequest } = await import(
+			"src/routes/api/opds/pse.$bookId.$pageNumber"
+		);
+
+		const response = await handleOpdsPseRequest({
+			request: new Request(
+				"https://example.com/api/opds/pse/12/0?apikey=feed-key",
+			),
+			params: { bookId: "12", pageNumber: "0" },
+		});
+
+		expect(response.status).toBe(500);
+		await expect(response.text()).resolves.toBe("Failed to extract page");
 	});
 });
