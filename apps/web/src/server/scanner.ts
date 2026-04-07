@@ -149,6 +149,42 @@ async function getOrCreateTag(name: string): Promise<number> {
 	return created.id;
 }
 
+async function resolveSeriesId(
+	name: string | null | undefined,
+	libraryId: number,
+): Promise<number | null> {
+	if (!name) {
+		return null;
+	}
+
+	return getOrCreateSeries(name, libraryId);
+}
+
+async function replaceBookAuthors(
+	bookId: number,
+	authorNames: string[],
+): Promise<void> {
+	await db.delete(booksAuthors).where(eq(booksAuthors.bookId, bookId));
+
+	const names = authorNames.length > 0 ? authorNames : ["Unknown"];
+	for (const authorName of names) {
+		const authorId = await getOrCreateAuthor(authorName);
+		await db.insert(booksAuthors).values({ bookId, authorId, role: "author" });
+	}
+}
+
+async function replaceBookTags(
+	bookId: number,
+	tagNames: string[],
+): Promise<void> {
+	await db.delete(booksTags).where(eq(booksTags.bookId, bookId));
+
+	for (const tagName of tagNames) {
+		const tagId = await getOrCreateTag(tagName);
+		await db.insert(booksTags).values({ bookId, tagId });
+	}
+}
+
 async function processNewFile(
 	filePath: string,
 	libraryId: number,
@@ -160,11 +196,7 @@ async function processNewFile(
 	const md5Hash = computeMd5(filePath);
 	const stat = fs.statSync(filePath);
 
-	// Resolve series
-	let seriesId: number | null = null;
-	if (metadata.series) {
-		seriesId = await getOrCreateSeries(metadata.series, libraryId);
-	}
+	const seriesId = await resolveSeriesId(metadata.series, libraryId);
 
 	// Insert book
 	const [book] = await db
@@ -226,31 +258,8 @@ async function processNewFile(
 			.run();
 	}
 
-	// Authors
-	const authorNames =
-		metadata.authors.length > 0 ? metadata.authors : ["Unknown"];
-	for (const authorName of authorNames) {
-		const authorId = await getOrCreateAuthor(authorName);
-		try {
-			await db
-				.insert(booksAuthors)
-				.values({ bookId, authorId, role: "author" });
-		} catch {
-			// Ignore unique constraint violations
-		}
-	}
-
-	// Tags
-	if (metadata.tags && metadata.tags.length > 0) {
-		for (const tagName of metadata.tags) {
-			const tagId = await getOrCreateTag(tagName);
-			try {
-				await db.insert(booksTags).values({ bookId, tagId });
-			} catch {
-				// Ignore unique constraint violations
-			}
-		}
-	}
+	await replaceBookAuthors(bookId, metadata.authors);
+	await replaceBookTags(bookId, metadata.tags ?? []);
 }
 
 async function processUpdatedFile(
@@ -263,21 +272,37 @@ async function processUpdatedFile(
 	const md5Hash = computeMd5(filePath);
 	const stat = fs.statSync(filePath);
 	const bookId = existingFile.bookId;
+	const existingBook = await db.query.books.findFirst({
+		where: eq(books.id, bookId),
+	});
+
+	if (!existingBook) {
+		throw new Error(`Book ${bookId} not found`);
+	}
+
+	const seriesId = await resolveSeriesId(
+		metadata.series,
+		existingBook.libraryId,
+	);
 
 	// Update book record
 	const updateValues: Partial<typeof books.$inferInsert> = {
 		title: metadata.title,
 		sortTitle: buildSortTitle(metadata.title),
+		slug: buildSlug(metadata.title),
 		description: metadata.description ?? null,
 		language: metadata.language ?? null,
 		publisher: metadata.publisher ?? null,
 		publishDate: metadata.publishDate ?? null,
 		pageCount: metadata.pageCount ?? null,
+		seriesId,
 		seriesIndex: metadata.seriesIndex ?? null,
 		updatedAt: new Date(),
 	};
 
 	await db.update(books).set(updateValues).where(eq(books.id, bookId));
+	await replaceBookAuthors(bookId, metadata.authors);
+	await replaceBookTags(bookId, metadata.tags ?? []);
 
 	// Update cover
 	if (cover) {
