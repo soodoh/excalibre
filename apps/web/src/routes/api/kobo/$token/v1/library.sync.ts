@@ -129,8 +129,12 @@ export async function handleKoboLibrarySyncRequest({
 	}
 
 	// Build updated sync token
+	const booksLastModified =
+		accessibleLibraryIds.length === 0
+			? syncState.booksLastModified
+			: now.toISOString();
 	const newSyncToken = buildSyncToken({
-		booksLastModified: now.toISOString(),
+		booksLastModified,
 		readingStateLastModified: now.toISOString(),
 	});
 

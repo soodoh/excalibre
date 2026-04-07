@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 const authenticateKobo = vi.fn();
 const getAccessibleLibraryIds = vi.fn();
@@ -23,7 +23,14 @@ describe("kobo sync", () => {
 		vi.resetAllMocks();
 	});
 
+	afterEach(() => {
+		vi.useRealTimers();
+	});
+
 	test("returns a fresh sync token even when the user has no accessible libraries", async () => {
+		vi.useFakeTimers();
+		vi.setSystemTime(new Date("2026-04-07T00:00:00.000Z"));
+
 		authenticateKobo.mockResolvedValue({ userId: "user-1" });
 		getAccessibleLibraryIds.mockResolvedValue([]);
 		parseSyncToken.mockReturnValue({
@@ -46,5 +53,9 @@ describe("kobo sync", () => {
 		expect(response.headers.get("x-kobo-synctoken")).toBe("fresh-token");
 		expect(response.headers.get("x-kobo-sync")).toBeNull();
 		await expect(response.json()).resolves.toEqual([]);
+		expect(buildSyncToken).toHaveBeenCalledWith({
+			booksLastModified: "2026-04-01T00:00:00.000Z",
+			readingStateLastModified: "2026-04-07T00:00:00.000Z",
+		});
 	});
 });
