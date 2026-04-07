@@ -3,13 +3,14 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { LibraryBigIcon, ScanIcon } from "lucide-react";
+import type { JSX } from "react";
 import { useMemo } from "react";
 import { toast } from "sonner";
 import { Button } from "src/components/ui/button";
 import { queryKeys } from "src/lib/query-keys";
 import { getLibrariesFn } from "src/server/libraries";
 import { getAuthSessionFn } from "src/server/middleware";
-import { triggerScanAllFn, triggerScanFn } from "src/server/scanner";
+import { triggerScanAllFn, triggerScanFn } from "src/server/scan-actions";
 
 export const Route = createFileRoute("/_authed/settings/scanning")({
 	beforeLoad: async () => {

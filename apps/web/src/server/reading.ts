@@ -3,15 +3,22 @@ import { createServerFn } from "@tanstack/react-start";
 import { and, desc, eq } from "drizzle-orm";
 import { db } from "src/db";
 import { annotations, readingProgress } from "src/db/schema";
+import { assertUserCanAccessBook } from "src/server/access-control";
 import { requireAuth } from "src/server/middleware";
+import { normalizeReadingProgress } from "src/server/reading-utils";
 import { z } from "zod";
 
 export const getReadingProgressFn = createServerFn({ method: "GET" })
-	.validator((raw: unknown) =>
+	.inputValidator((raw: unknown) =>
 		z.object({ bookId: z.number().int() }).parse(raw),
 	)
 	.handler(async ({ data }) => {
 		const session = await requireAuth();
+		await assertUserCanAccessBook(
+			session.user.id,
+			data.bookId,
+			session.user.role,
+		);
 
 		return db
 			.select()
@@ -25,7 +32,7 @@ export const getReadingProgressFn = createServerFn({ method: "GET" })
 	});
 
 export const saveReadingProgressFn = createServerFn({ method: "POST" })
-	.validator((raw: unknown) =>
+	.inputValidator((raw: unknown) =>
 		z
 			.object({
 				bookId: z.number().int(),
@@ -39,6 +46,13 @@ export const saveReadingProgressFn = createServerFn({ method: "POST" })
 	)
 	.handler(async ({ data }) => {
 		const session = await requireAuth();
+		await assertUserCanAccessBook(
+			session.user.id,
+			data.bookId,
+			session.user.role,
+		);
+		const progress = normalizeReadingProgress(data.progress);
+		const isFinished = data.isFinished ?? progress >= 1;
 
 		const existing = await db.query.readingProgress.findFirst({
 			where: and(
@@ -53,9 +67,9 @@ export const saveReadingProgressFn = createServerFn({ method: "POST" })
 				.update(readingProgress)
 				.set({
 					deviceId: data.deviceId,
-					progress: data.progress,
+					progress,
 					position: data.position,
-					isFinished: data.isFinished ?? false,
+					isFinished,
 					updatedAt: new Date(),
 				})
 				.where(eq(readingProgress.id, existing.id))
@@ -70,20 +84,25 @@ export const saveReadingProgressFn = createServerFn({ method: "POST" })
 				bookId: data.bookId,
 				deviceType: data.deviceType,
 				deviceId: data.deviceId,
-				progress: data.progress,
+				progress,
 				position: data.position,
-				isFinished: data.isFinished ?? false,
+				isFinished,
 			})
 			.returning();
 		return inserted;
 	});
 
 export const getAnnotationsFn = createServerFn({ method: "GET" })
-	.validator((raw: unknown) =>
+	.inputValidator((raw: unknown) =>
 		z.object({ bookId: z.number().int() }).parse(raw),
 	)
 	.handler(async ({ data }) => {
 		const session = await requireAuth();
+		await assertUserCanAccessBook(
+			session.user.id,
+			data.bookId,
+			session.user.role,
+		);
 
 		return db
 			.select()
@@ -98,7 +117,7 @@ export const getAnnotationsFn = createServerFn({ method: "GET" })
 	});
 
 export const createAnnotationFn = createServerFn({ method: "POST" })
-	.validator((raw: unknown) =>
+	.inputValidator((raw: unknown) =>
 		z
 			.object({
 				bookId: z.number().int(),
@@ -112,6 +131,11 @@ export const createAnnotationFn = createServerFn({ method: "POST" })
 	)
 	.handler(async ({ data }) => {
 		const session = await requireAuth();
+		await assertUserCanAccessBook(
+			session.user.id,
+			data.bookId,
+			session.user.role,
+		);
 
 		const [inserted] = await db
 			.insert(annotations)
@@ -129,7 +153,9 @@ export const createAnnotationFn = createServerFn({ method: "POST" })
 	});
 
 export const deleteAnnotationFn = createServerFn({ method: "POST" })
-	.validator((raw: unknown) => z.object({ id: z.number().int() }).parse(raw))
+	.inputValidator((raw: unknown) =>
+		z.object({ id: z.number().int() }).parse(raw),
+	)
 	.handler(async ({ data }) => {
 		const session = await requireAuth();
 

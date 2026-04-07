@@ -111,7 +111,8 @@ function ContinueReadingSection(): JSX.Element {
 
 function HomePage(): JSX.Element {
 	const { data: session } = useSession();
-	const isAdmin = session?.user?.role === "admin";
+	const sessionUser = session?.user as { role?: "admin" | "user" } | undefined;
+	const isAdmin = sessionUser?.role === "admin";
 
 	const { data: recentBooks, isLoading } = useQuery({
 		queryKey: queryKeys.books.recent(),

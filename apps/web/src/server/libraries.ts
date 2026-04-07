@@ -8,6 +8,7 @@ import type {
 	UpdateLibraryInput,
 } from "src/lib/validators";
 import { createLibrarySchema, updateLibrarySchema } from "src/lib/validators";
+import { assertUserCanAccessLibrary } from "src/server/access-control";
 import { requireAdmin, requireAuth } from "src/server/middleware";
 import { z } from "zod";
 
@@ -34,9 +35,16 @@ export const getLibrariesFn = createServerFn({ method: "GET" }).handler(
 );
 
 export const getLibraryFn = createServerFn({ method: "GET" })
-	.validator((raw: unknown) => z.object({ id: z.number().int() }).parse(raw))
+	.inputValidator((raw: unknown) =>
+		z.object({ id: z.number().int() }).parse(raw),
+	)
 	.handler(async ({ data }) => {
-		await requireAuth();
+		const session = await requireAuth();
+		await assertUserCanAccessLibrary(
+			session.user.id,
+			data.id,
+			session.user.role,
+		);
 
 		const library = await db.query.libraries.findFirst({
 			where: eq(libraries.id, data.id),
@@ -50,7 +58,7 @@ export const getLibraryFn = createServerFn({ method: "GET" })
 	});
 
 export const createLibraryFn = createServerFn({ method: "POST" })
-	.validator(
+	.inputValidator(
 		(raw: unknown): CreateLibraryInput => createLibrarySchema.parse(raw),
 	)
 	.handler(async ({ data }) => {
@@ -70,7 +78,7 @@ export const createLibraryFn = createServerFn({ method: "POST" })
 	});
 
 export const updateLibraryFn = createServerFn({ method: "POST" })
-	.validator(
+	.inputValidator(
 		(raw: unknown): UpdateLibraryInput => updateLibrarySchema.parse(raw),
 	)
 	.handler(async ({ data }) => {
@@ -92,7 +100,9 @@ export const updateLibraryFn = createServerFn({ method: "POST" })
 	});
 
 export const deleteLibraryFn = createServerFn({ method: "POST" })
-	.validator((raw: unknown) => z.object({ id: z.number().int() }).parse(raw))
+	.inputValidator((raw: unknown) =>
+		z.object({ id: z.number().int() }).parse(raw),
+	)
 	.handler(async ({ data }) => {
 		await requireAdmin();
 

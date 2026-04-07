@@ -1,8 +1,12 @@
 // oxlint-disable typescript/no-unsafe-assignment, typescript/no-unsafe-call, typescript/no-unsafe-member-access, typescript/no-unsafe-argument
 import { createServerFn } from "@tanstack/react-start";
-import { and, asc, count, eq, max } from "drizzle-orm";
+import { and, asc, count, eq, inArray, max } from "drizzle-orm";
 import { db } from "src/db";
 import { books, readingListBooks, readingLists } from "src/db/schema";
+import {
+	assertUserCanAccessBook,
+	getAccessibleLibraryIds,
+} from "src/server/access-control";
 import { requireAuth } from "src/server/middleware";
 import { z } from "zod";
 
@@ -31,11 +35,15 @@ export const getReadingListsFn = createServerFn({ method: "GET" }).handler(
 );
 
 export const getReadingListBooksFn = createServerFn({ method: "GET" })
-	.validator((raw: unknown) =>
+	.inputValidator((raw: unknown) =>
 		z.object({ readingListId: z.number().int() }).parse(raw),
 	)
 	.handler(async ({ data }) => {
 		const session = await requireAuth();
+		const accessibleLibraryIds = await getAccessibleLibraryIds(
+			session.user.id,
+			session.user.role,
+		);
 
 		const list = await db.query.readingLists.findFirst({
 			where: and(
@@ -45,6 +53,10 @@ export const getReadingListBooksFn = createServerFn({ method: "GET" })
 		});
 		if (!list) {
 			throw new Error("Reading list not found");
+		}
+
+		if (accessibleLibraryIds.length === 0) {
+			return [];
 		}
 
 		return db
@@ -73,12 +85,17 @@ export const getReadingListBooksFn = createServerFn({ method: "GET" })
 			})
 			.from(readingListBooks)
 			.innerJoin(books, eq(readingListBooks.bookId, books.id))
-			.where(eq(readingListBooks.readingListId, data.readingListId))
+			.where(
+				and(
+					eq(readingListBooks.readingListId, data.readingListId),
+					inArray(books.libraryId, accessibleLibraryIds),
+				),
+			)
 			.orderBy(asc(readingListBooks.sortOrder));
 	});
 
 export const createReadingListFn = createServerFn({ method: "POST" })
-	.validator((raw: unknown) =>
+	.inputValidator((raw: unknown) =>
 		z.object({ name: z.string().min(1, "Name is required") }).parse(raw),
 	)
 	.handler(async ({ data }) => {
@@ -91,7 +108,7 @@ export const createReadingListFn = createServerFn({ method: "POST" })
 	});
 
 export const updateReadingListFn = createServerFn({ method: "POST" })
-	.validator((raw: unknown) =>
+	.inputValidator((raw: unknown) =>
 		z
 			.object({
 				id: z.number().int(),
@@ -116,7 +133,9 @@ export const updateReadingListFn = createServerFn({ method: "POST" })
 	});
 
 export const deleteReadingListFn = createServerFn({ method: "POST" })
-	.validator((raw: unknown) => z.object({ id: z.number().int() }).parse(raw))
+	.inputValidator((raw: unknown) =>
+		z.object({ id: z.number().int() }).parse(raw),
+	)
 	.handler(async ({ data }) => {
 		const session = await requireAuth();
 		await db
@@ -131,13 +150,18 @@ export const deleteReadingListFn = createServerFn({ method: "POST" })
 	});
 
 export const addBookToReadingListFn = createServerFn({ method: "POST" })
-	.validator((raw: unknown) =>
+	.inputValidator((raw: unknown) =>
 		z
 			.object({ readingListId: z.number().int(), bookId: z.number().int() })
 			.parse(raw),
 	)
 	.handler(async ({ data }) => {
 		const session = await requireAuth();
+		await assertUserCanAccessBook(
+			session.user.id,
+			data.bookId,
+			session.user.role,
+		);
 		const list = await db.query.readingLists.findFirst({
 			where: and(
 				eq(readingLists.id, data.readingListId),
@@ -167,13 +191,18 @@ export const addBookToReadingListFn = createServerFn({ method: "POST" })
 	});
 
 export const removeBookFromReadingListFn = createServerFn({ method: "POST" })
-	.validator((raw: unknown) =>
+	.inputValidator((raw: unknown) =>
 		z
 			.object({ readingListId: z.number().int(), bookId: z.number().int() })
 			.parse(raw),
 	)
 	.handler(async ({ data }) => {
 		const session = await requireAuth();
+		await assertUserCanAccessBook(
+			session.user.id,
+			data.bookId,
+			session.user.role,
+		);
 		const list = await db.query.readingLists.findFirst({
 			where: and(
 				eq(readingLists.id, data.readingListId),
@@ -196,7 +225,7 @@ export const removeBookFromReadingListFn = createServerFn({ method: "POST" })
 	});
 
 export const reorderReadingListFn = createServerFn({ method: "POST" })
-	.validator((raw: unknown) =>
+	.inputValidator((raw: unknown) =>
 		z
 			.object({
 				readingListId: z.number().int(),
@@ -206,6 +235,11 @@ export const reorderReadingListFn = createServerFn({ method: "POST" })
 	)
 	.handler(async ({ data }) => {
 		const session = await requireAuth();
+		await Promise.all(
+			data.bookIds.map((bookId) =>
+				assertUserCanAccessBook(session.user.id, bookId, session.user.role),
+			),
+		);
 		const list = await db.query.readingLists.findFirst({
 			where: and(
 				eq(readingLists.id, data.readingListId),

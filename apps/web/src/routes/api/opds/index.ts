@@ -33,12 +33,14 @@ export const Route = createFileRoute("/api/opds/")({
 					"Excalibre Library",
 					selfHref,
 					baseUrl,
+					auth,
 				);
 
 				xml += opdsNavigationEntry(
 					"urn:excalibre:opds:all",
 					"All Books",
 					`${baseUrl}/api/opds/all`,
+					auth,
 					"Browse all books in your library",
 				);
 
@@ -46,6 +48,7 @@ export const Route = createFileRoute("/api/opds/")({
 					"urn:excalibre:opds:recent",
 					"Recently Added",
 					`${baseUrl}/api/opds/recent`,
+					auth,
 					"Books recently added to your library",
 				);
 
@@ -54,6 +57,7 @@ export const Route = createFileRoute("/api/opds/")({
 						`urn:excalibre:opds:library:${lib.id}`,
 						lib.name,
 						`${baseUrl}/api/opds/libraries/${lib.id}`,
+						auth,
 						`Browse books in ${lib.name}`,
 					);
 				}

@@ -6,31 +6,15 @@ import {
 	authors,
 	books,
 	booksAuthors,
-	libraries,
-	libraryAccess,
 	readingProgress,
 	series,
 } from "src/db/schema";
+import { getAccessibleLibraryIds } from "src/server/access-control";
 import { requireAuth } from "src/server/middleware";
 import { z } from "zod";
 
-async function getAccessibleLibraryIds(
-	userId: string,
-	role: string,
-): Promise<number[]> {
-	if (role === "admin") {
-		const allLibraries = await db.select({ id: libraries.id }).from(libraries);
-		return allLibraries.map((l) => l.id);
-	}
-	const access = await db
-		.select({ libraryId: libraryAccess.libraryId })
-		.from(libraryAccess)
-		.where(eq(libraryAccess.userId, userId));
-	return access.map((a) => a.libraryId);
-}
-
 export const searchFn = createServerFn({ method: "GET" })
-	.validator((raw: unknown) =>
+	.inputValidator((raw: unknown) =>
 		z
 			.object({
 				query: z.string().min(1),
@@ -108,7 +92,7 @@ export const searchFn = createServerFn({ method: "GET" })
 	});
 
 export const getContinueReadingFn = createServerFn({ method: "GET" })
-	.validator((raw: unknown) =>
+	.inputValidator((raw: unknown) =>
 		z.object({ limit: z.number().int().default(12) }).parse(raw),
 	)
 	.handler(async ({ data }) => {

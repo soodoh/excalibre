@@ -22,7 +22,7 @@ export const getKoboTokensFn = createServerFn({ method: "GET" }).handler(
 );
 
 export const createKoboTokenFn = createServerFn({ method: "POST" })
-	.validator((raw: unknown) =>
+	.inputValidator((raw: unknown) =>
 		z.object({ deviceName: z.string().optional() }).parse(raw),
 	)
 	.handler(async ({ data }) => {
@@ -40,7 +40,9 @@ export const createKoboTokenFn = createServerFn({ method: "POST" })
 	});
 
 export const deleteKoboTokenFn = createServerFn({ method: "POST" })
-	.validator((raw: unknown) => z.object({ id: z.number().int() }).parse(raw))
+	.inputValidator((raw: unknown) =>
+		z.object({ id: z.number().int() }).parse(raw),
+	)
 	.handler(async ({ data }) => {
 		const session = await requireAuth();
 		await db

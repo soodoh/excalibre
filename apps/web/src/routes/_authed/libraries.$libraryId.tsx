@@ -11,7 +11,7 @@ import { useSession } from "src/lib/auth-client";
 import { queryKeys } from "src/lib/query-keys";
 import { getBooksByLibraryFn } from "src/server/books";
 import { getLibraryFn } from "src/server/libraries";
-import { triggerScanFn } from "src/server/scanner";
+import { triggerScanFn } from "src/server/scan-actions";
 
 export const Route = createFileRoute("/_authed/libraries/$libraryId")({
 	component: LibraryBrowsePage,

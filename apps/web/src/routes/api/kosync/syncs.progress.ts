@@ -2,7 +2,10 @@ import { createFileRoute } from "@tanstack/react-router";
 import { and, eq } from "drizzle-orm";
 import { db } from "src/db";
 import { readingProgress } from "src/db/schema";
+import { assertUserCanAccessBook } from "src/server/access-control";
+import { ForbiddenError } from "src/server/http-errors";
 import { authenticateKosync, findBookByMd5 } from "src/server/kosync";
+import { normalizeReadingProgress } from "src/server/reading-utils";
 
 type ProgressPutBody = {
 	document?: string;
@@ -69,6 +72,18 @@ export const Route = createFileRoute("/api/kosync/syncs/progress")({
 					return Response.json({});
 				}
 
+				try {
+					await assertUserCanAccessBook(user.id, bookFile.bookId, user.role);
+				} catch (error) {
+					if (error instanceof ForbiddenError) {
+						return Response.json(
+							{ message: "Document not accessible" },
+							{ status: 403 },
+						);
+					}
+					throw error;
+				}
+
 				const progress = await db.query.readingProgress.findFirst({
 					where: and(
 						eq(readingProgress.userId, user.id),
@@ -123,10 +138,24 @@ export const Route = createFileRoute("/api/kosync/syncs/progress")({
 					);
 				}
 
+				try {
+					await assertUserCanAccessBook(user.id, bookFile.bookId, user.role);
+				} catch (error) {
+					if (error instanceof ForbiddenError) {
+						return Response.json(
+							{ message: "Document not accessible" },
+							{ status: 403 },
+						);
+					}
+					throw error;
+				}
+
 				await upsertReadingProgress(
 					user.id,
 					bookFile.bookId,
-					percentage,
+					percentage === undefined
+						? undefined
+						: normalizeReadingProgress(percentage),
 					progress,
 					device_id,
 				);

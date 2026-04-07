@@ -20,14 +20,16 @@ import {
 	booksTags,
 	collections,
 	collectionsBooks,
-	libraries,
-	libraryAccess,
 	readingListBooks,
 	readingLists,
 	shelves,
 	shelvesBooks,
 	tags,
 } from "src/db/schema";
+import {
+	assertUserCanAccessBook,
+	getAccessibleLibraryIds,
+} from "src/server/access-control";
 import { requireAuth } from "src/server/middleware";
 import { z } from "zod";
 
@@ -56,21 +58,6 @@ type FilterRules = {
 	operator: "and" | "or";
 	conditions: FilterCondition[];
 };
-
-async function getAccessibleLibraryIds(
-	userId: string,
-	role: string,
-): Promise<number[]> {
-	if (role === "admin") {
-		const allLibraries = await db.select({ id: libraries.id }).from(libraries);
-		return allLibraries.map((l) => l.id);
-	}
-	const access = await db
-		.select({ libraryId: libraryAccess.libraryId })
-		.from(libraryAccess)
-		.where(eq(libraryAccess.userId, userId));
-	return access.map((a) => a.libraryId);
-}
 
 function buildFilterCondition(condition: FilterCondition) {
 	const { field, op, value } = condition;
@@ -208,7 +195,7 @@ export const getShelvesFn = createServerFn({ method: "GET" }).handler(
 );
 
 export const getShelfFn = createServerFn({ method: "GET" })
-	.validator((raw: unknown) =>
+	.inputValidator((raw: unknown) =>
 		z.object({ shelfId: z.number().int() }).parse(raw),
 	)
 	.handler(async ({ data }) => {
@@ -226,7 +213,7 @@ export const getShelfFn = createServerFn({ method: "GET" })
 	});
 
 export const getShelfBooksFn = createServerFn({ method: "GET" })
-	.validator((raw: unknown) =>
+	.inputValidator((raw: unknown) =>
 		z.object({ shelfId: z.number().int() }).parse(raw),
 	)
 	.handler(async ({ data }) => {
@@ -290,12 +277,12 @@ export const getShelfBooksFn = createServerFn({ method: "GET" })
 	});
 
 export const createShelfFn = createServerFn({ method: "POST" })
-	.validator((raw: unknown) =>
+	.inputValidator((raw: unknown) =>
 		z
 			.object({
 				name: z.string().min(1, "Name is required"),
 				type: z.enum(["smart", "manual"]),
-				filterRules: z.record(z.unknown()).optional(),
+				filterRules: z.record(z.string(), z.any()).optional(),
 			})
 			.parse(raw),
 	)
@@ -314,12 +301,12 @@ export const createShelfFn = createServerFn({ method: "POST" })
 	});
 
 export const updateShelfFn = createServerFn({ method: "POST" })
-	.validator((raw: unknown) =>
+	.inputValidator((raw: unknown) =>
 		z
 			.object({
 				id: z.number().int(),
 				name: z.string().min(1).optional(),
-				filterRules: z.record(z.unknown()).optional(),
+				filterRules: z.record(z.string(), z.any()).optional(),
 				sortOrder: z.number().int().optional(),
 			})
 			.parse(raw),
@@ -339,7 +326,9 @@ export const updateShelfFn = createServerFn({ method: "POST" })
 	});
 
 export const deleteShelfFn = createServerFn({ method: "POST" })
-	.validator((raw: unknown) => z.object({ id: z.number().int() }).parse(raw))
+	.inputValidator((raw: unknown) =>
+		z.object({ id: z.number().int() }).parse(raw),
+	)
 	.handler(async ({ data }) => {
 		const session = await requireAuth();
 		await db
@@ -349,13 +338,18 @@ export const deleteShelfFn = createServerFn({ method: "POST" })
 	});
 
 export const addBookToShelfFn = createServerFn({ method: "POST" })
-	.validator((raw: unknown) =>
+	.inputValidator((raw: unknown) =>
 		z
 			.object({ shelfId: z.number().int(), bookId: z.number().int() })
 			.parse(raw),
 	)
 	.handler(async ({ data }) => {
 		const session = await requireAuth();
+		await assertUserCanAccessBook(
+			session.user.id,
+			data.bookId,
+			session.user.role,
+		);
 		// Verify shelf ownership and manual type
 		const shelf = await db.query.shelves.findFirst({
 			where: and(
@@ -378,13 +372,18 @@ export const addBookToShelfFn = createServerFn({ method: "POST" })
 	});
 
 export const removeBookFromShelfFn = createServerFn({ method: "POST" })
-	.validator((raw: unknown) =>
+	.inputValidator((raw: unknown) =>
 		z
 			.object({ shelfId: z.number().int(), bookId: z.number().int() })
 			.parse(raw),
 	)
 	.handler(async ({ data }) => {
 		const session = await requireAuth();
+		await assertUserCanAccessBook(
+			session.user.id,
+			data.bookId,
+			session.user.role,
+		);
 		// Verify shelf ownership
 		const shelf = await db.query.shelves.findFirst({
 			where: and(
@@ -412,11 +411,16 @@ export const removeBookFromShelfFn = createServerFn({ method: "POST" })
  * already contain the given book for the current user.
  */
 export const getBookMembershipFn = createServerFn({ method: "GET" })
-	.validator((raw: unknown) =>
+	.inputValidator((raw: unknown) =>
 		z.object({ bookId: z.number().int() }).parse(raw),
 	)
 	.handler(async ({ data }) => {
 		const session = await requireAuth();
+		await assertUserCanAccessBook(
+			session.user.id,
+			data.bookId,
+			session.user.role,
+		);
 
 		const [shelfRows, collectionRows, listRows] = await Promise.all([
 			db

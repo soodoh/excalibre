@@ -8,16 +8,18 @@ import {
 	books,
 	booksAuthors,
 	booksTags,
-	libraries,
-	libraryAccess,
 	series,
 	tags,
 } from "src/db/schema";
+import {
+	assertUserCanAccessBook,
+	getAccessibleLibraryIds,
+} from "src/server/access-control";
 import { requireAuth, requireLibraryAccess } from "src/server/middleware";
 import { z } from "zod";
 
 export const getBooksByLibraryFn = createServerFn({ method: "GET" })
-	.validator((raw: unknown) =>
+	.inputValidator((raw: unknown) =>
 		z
 			.object({
 				libraryId: z.number().int(),
@@ -55,9 +57,12 @@ export const getBooksByLibraryFn = createServerFn({ method: "GET" })
 	});
 
 export const getBookDetailFn = createServerFn({ method: "GET" })
-	.validator((raw: unknown) => z.object({ id: z.number().int() }).parse(raw))
+	.inputValidator((raw: unknown) =>
+		z.object({ id: z.number().int() }).parse(raw),
+	)
 	.handler(async ({ data }) => {
-		await requireAuth();
+		const session = await requireAuth();
+		await assertUserCanAccessBook(session.user.id, data.id, session.user.role);
 
 		const book = await db.query.books.findFirst({
 			where: eq(books.id, data.id),
@@ -108,26 +113,15 @@ export const getBookDetailFn = createServerFn({ method: "GET" })
 	});
 
 export const getRecentBooksFn = createServerFn({ method: "GET" })
-	.validator((raw: unknown) =>
+	.inputValidator((raw: unknown) =>
 		z.object({ limit: z.number().int().default(12) }).parse(raw),
 	)
 	.handler(async ({ data }) => {
 		const session = await requireAuth();
-
-		let accessibleLibraryIds: number[];
-
-		if (session.user.role === "admin") {
-			const allLibraries = await db
-				.select({ id: libraries.id })
-				.from(libraries);
-			accessibleLibraryIds = allLibraries.map((l) => l.id);
-		} else {
-			const access = await db
-				.select({ libraryId: libraryAccess.libraryId })
-				.from(libraryAccess)
-				.where(eq(libraryAccess.userId, session.user.id));
-			accessibleLibraryIds = access.map((a) => a.libraryId);
-		}
+		const accessibleLibraryIds = await getAccessibleLibraryIds(
+			session.user.id,
+			session.user.role,
+		);
 
 		if (accessibleLibraryIds.length === 0) {
 			return [];

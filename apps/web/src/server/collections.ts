@@ -1,8 +1,12 @@
 // oxlint-disable typescript/no-unsafe-assignment, typescript/no-unsafe-call, typescript/no-unsafe-member-access, typescript/no-unsafe-argument
 import { createServerFn } from "@tanstack/react-start";
-import { and, count, eq } from "drizzle-orm";
+import { and, count, eq, inArray } from "drizzle-orm";
 import { db } from "src/db";
 import { books, collections, collectionsBooks } from "src/db/schema";
+import {
+	assertUserCanAccessBook,
+	getAccessibleLibraryIds,
+} from "src/server/access-control";
 import { requireAuth } from "src/server/middleware";
 import { z } from "zod";
 
@@ -32,11 +36,15 @@ export const getCollectionsFn = createServerFn({ method: "GET" }).handler(
 );
 
 export const getCollectionBooksFn = createServerFn({ method: "GET" })
-	.validator((raw: unknown) =>
+	.inputValidator((raw: unknown) =>
 		z.object({ collectionId: z.number().int() }).parse(raw),
 	)
 	.handler(async ({ data }) => {
 		const session = await requireAuth();
+		const accessibleLibraryIds = await getAccessibleLibraryIds(
+			session.user.id,
+			session.user.role,
+		);
 
 		const collection = await db.query.collections.findFirst({
 			where: and(
@@ -46,6 +54,10 @@ export const getCollectionBooksFn = createServerFn({ method: "GET" })
 		});
 		if (!collection) {
 			throw new Error("Collection not found");
+		}
+
+		if (accessibleLibraryIds.length === 0) {
+			return [];
 		}
 
 		return db
@@ -73,11 +85,16 @@ export const getCollectionBooksFn = createServerFn({ method: "GET" })
 			})
 			.from(collectionsBooks)
 			.innerJoin(books, eq(collectionsBooks.bookId, books.id))
-			.where(eq(collectionsBooks.collectionId, data.collectionId));
+			.where(
+				and(
+					eq(collectionsBooks.collectionId, data.collectionId),
+					inArray(books.libraryId, accessibleLibraryIds),
+				),
+			);
 	});
 
 export const createCollectionFn = createServerFn({ method: "POST" })
-	.validator((raw: unknown) =>
+	.inputValidator((raw: unknown) =>
 		z.object({ name: z.string().min(1, "Name is required") }).parse(raw),
 	)
 	.handler(async ({ data }) => {
@@ -90,7 +107,7 @@ export const createCollectionFn = createServerFn({ method: "POST" })
 	});
 
 export const updateCollectionFn = createServerFn({ method: "POST" })
-	.validator((raw: unknown) =>
+	.inputValidator((raw: unknown) =>
 		z
 			.object({
 				id: z.number().int(),
@@ -116,7 +133,9 @@ export const updateCollectionFn = createServerFn({ method: "POST" })
 	});
 
 export const deleteCollectionFn = createServerFn({ method: "POST" })
-	.validator((raw: unknown) => z.object({ id: z.number().int() }).parse(raw))
+	.inputValidator((raw: unknown) =>
+		z.object({ id: z.number().int() }).parse(raw),
+	)
 	.handler(async ({ data }) => {
 		const session = await requireAuth();
 		await db
@@ -131,13 +150,18 @@ export const deleteCollectionFn = createServerFn({ method: "POST" })
 	});
 
 export const addBookToCollectionFn = createServerFn({ method: "POST" })
-	.validator((raw: unknown) =>
+	.inputValidator((raw: unknown) =>
 		z
 			.object({ collectionId: z.number().int(), bookId: z.number().int() })
 			.parse(raw),
 	)
 	.handler(async ({ data }) => {
 		const session = await requireAuth();
+		await assertUserCanAccessBook(
+			session.user.id,
+			data.bookId,
+			session.user.role,
+		);
 		const collection = await db.query.collections.findFirst({
 			where: and(
 				eq(collections.id, data.collectionId),
@@ -156,13 +180,18 @@ export const addBookToCollectionFn = createServerFn({ method: "POST" })
 	});
 
 export const removeBookFromCollectionFn = createServerFn({ method: "POST" })
-	.validator((raw: unknown) =>
+	.inputValidator((raw: unknown) =>
 		z
 			.object({ collectionId: z.number().int(), bookId: z.number().int() })
 			.parse(raw),
 	)
 	.handler(async ({ data }) => {
 		const session = await requireAuth();
+		await assertUserCanAccessBook(
+			session.user.id,
+			data.bookId,
+			session.user.role,
+		);
 		const collection = await db.query.collections.findFirst({
 			where: and(
 				eq(collections.id, data.collectionId),

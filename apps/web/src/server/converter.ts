@@ -10,34 +10,6 @@ const execFile = promisify(execFileCb);
 
 const EXCALIBRE_DIR = process.env.EXCALIBRE_DIR ?? "data/excalibre";
 
-// Maps source format -> list of supported target formats (via pandoc)
-const PANDOC_CONVERSIONS: Record<string, string[]> = {
-	epub: ["mobi", "pdf", "docx", "html", "txt"],
-	mobi: ["epub", "pdf", "docx", "html", "txt"],
-	docx: ["epub", "pdf", "html", "txt"],
-	html: ["epub", "pdf", "docx", "txt"],
-	txt: ["epub", "html", "docx"],
-};
-
-// Formats that kepubify can convert from
-const KEPUBIFY_SOURCE_FORMATS = new Set(["epub"]);
-
-export function getSupportedConversions(sourceFormat: string): string[] {
-	const fmt = sourceFormat.toLowerCase();
-	const targets = new Set<string>();
-
-	if (KEPUBIFY_SOURCE_FORMATS.has(fmt)) {
-		targets.add("kepub");
-	}
-
-	const pandocTargets = PANDOC_CONVERSIONS[fmt] ?? [];
-	for (const t of pandocTargets) {
-		targets.add(t);
-	}
-
-	return [...targets];
-}
-
 function sanitizeFilename(title: string): string {
 	return title
 		.replaceAll(/[/\\:*?"<>|]/g, "_")

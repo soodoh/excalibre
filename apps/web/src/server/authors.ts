@@ -1,15 +1,31 @@
 // oxlint-disable typescript/no-unsafe-assignment, typescript/no-unsafe-call, typescript/no-unsafe-member-access, typescript/no-unsafe-argument
 import { createServerFn } from "@tanstack/react-start";
-import { eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { db } from "src/db";
 import { authors, books, booksAuthors, series } from "src/db/schema";
+import {
+	assertUserCanAccessAuthor,
+	assertUserCanAccessSeries,
+	getAccessibleLibraryIds,
+} from "src/server/access-control";
 import { requireAuth } from "src/server/middleware";
 import { z } from "zod";
 
 export const getAuthorDetailFn = createServerFn({ method: "GET" })
-	.validator((raw: unknown) => z.object({ id: z.number().int() }).parse(raw))
+	.inputValidator((raw: unknown) =>
+		z.object({ id: z.number().int() }).parse(raw),
+	)
 	.handler(async ({ data }) => {
-		await requireAuth();
+		const session = await requireAuth();
+		await assertUserCanAccessAuthor(
+			session.user.id,
+			data.id,
+			session.user.role,
+		);
+		const accessibleLibraryIds = await getAccessibleLibraryIds(
+			session.user.id,
+			session.user.role,
+		);
 
 		const author = await db.query.authors.findFirst({
 			where: eq(authors.id, data.id),
@@ -29,7 +45,12 @@ export const getAuthorDetailFn = createServerFn({ method: "GET" })
 			})
 			.from(booksAuthors)
 			.innerJoin(books, eq(booksAuthors.bookId, books.id))
-			.where(eq(booksAuthors.authorId, data.id));
+			.where(
+				and(
+					eq(booksAuthors.authorId, data.id),
+					inArray(books.libraryId, accessibleLibraryIds),
+				),
+			);
 
 		return {
 			...author,
@@ -38,9 +59,20 @@ export const getAuthorDetailFn = createServerFn({ method: "GET" })
 	});
 
 export const getSeriesDetailFn = createServerFn({ method: "GET" })
-	.validator((raw: unknown) => z.object({ id: z.number().int() }).parse(raw))
+	.inputValidator((raw: unknown) =>
+		z.object({ id: z.number().int() }).parse(raw),
+	)
 	.handler(async ({ data }) => {
-		await requireAuth();
+		const session = await requireAuth();
+		await assertUserCanAccessSeries(
+			session.user.id,
+			data.id,
+			session.user.role,
+		);
+		const accessibleLibraryIds = await getAccessibleLibraryIds(
+			session.user.id,
+			session.user.role,
+		);
 
 		const seriesRow = await db.query.series.findFirst({
 			where: eq(series.id, data.id),
@@ -59,7 +91,12 @@ export const getSeriesDetailFn = createServerFn({ method: "GET" })
 				createdAt: books.createdAt,
 			})
 			.from(books)
-			.where(eq(books.seriesId, data.id))
+			.where(
+				and(
+					eq(books.seriesId, data.id),
+					inArray(books.libraryId, accessibleLibraryIds),
+				),
+			)
 			.orderBy(books.seriesIndex);
 
 		return {

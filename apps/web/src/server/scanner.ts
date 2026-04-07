@@ -3,7 +3,6 @@
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import { createServerFn } from "@tanstack/react-start";
 import { and, eq } from "drizzle-orm";
 import { db } from "src/db";
 import {
@@ -22,8 +21,6 @@ import {
 	getFileFormat,
 	isSupportedFormat,
 } from "src/server/extractors";
-import { requireAdmin } from "src/server/middleware";
-import { z } from "zod";
 
 const DATA_DIR = process.env.DATA_DIR ?? "data";
 const EXCALIBRE_DIR = process.env.EXCALIBRE_DIR ?? "data/excalibre";
@@ -380,30 +377,17 @@ export async function scanLibrary(libraryId: number): Promise<ScanResult> {
 	return { added, updated, missing };
 }
 
-export const triggerScanFn = createServerFn({ method: "POST" })
-	.validator((raw: unknown) =>
-		z.object({ libraryId: z.number().int() }).parse(raw),
-	)
-	.handler(async ({ data }) => {
-		await requireAdmin();
-		return scanLibrary(data.libraryId);
-	});
+export async function scanAllLibraries(): Promise<ScanResult> {
+	const allLibraries = await db.select().from(libraries);
 
-export const triggerScanAllFn = createServerFn({ method: "POST" }).handler(
-	async () => {
-		await requireAdmin();
+	const results = { added: 0, updated: 0, missing: 0 };
 
-		const allLibraries = await db.select().from(libraries);
+	for (const library of allLibraries) {
+		const result = await scanLibrary(library.id);
+		results.added += result.added;
+		results.updated += result.updated;
+		results.missing += result.missing;
+	}
 
-		const results = { added: 0, updated: 0, missing: 0 };
-
-		for (const library of allLibraries) {
-			const result = await scanLibrary(library.id);
-			results.added += result.added;
-			results.updated += result.updated;
-			results.missing += result.missing;
-		}
-
-		return results;
-	},
-);
+	return results;
+}

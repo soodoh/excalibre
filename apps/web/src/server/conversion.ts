@@ -3,12 +3,16 @@ import { createServerFn } from "@tanstack/react-start";
 import { desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "src/db";
 import { bookFiles, jobs } from "src/db/schema";
-import { getSupportedConversions } from "src/server/converter";
+import {
+	assertUserCanAccessBook,
+	assertUserCanAccessBookFile,
+} from "src/server/access-control";
+import { getSupportedConversions } from "src/server/conversion-options";
 import { requireAdmin, requireAuth } from "src/server/middleware";
 import { z } from "zod";
 
 export const requestConversionFn = createServerFn({ method: "POST" })
-	.validator((raw: unknown) =>
+	.inputValidator((raw: unknown) =>
 		z
 			.object({
 				bookFileId: z.number().int(),
@@ -17,15 +21,13 @@ export const requestConversionFn = createServerFn({ method: "POST" })
 			.parse(raw),
 	)
 	.handler(async ({ data }) => {
-		await requireAuth();
+		const session = await requireAuth();
 
-		const bookFile = await db.query.bookFiles.findFirst({
-			where: eq(bookFiles.id, data.bookFileId),
-		});
-
-		if (!bookFile) {
-			throw new Error(`BookFile ${data.bookFileId} not found`);
-		}
+		const bookFile = await assertUserCanAccessBookFile(
+			session.user.id,
+			data.bookFileId,
+			session.user.role,
+		);
 
 		const supported = getSupportedConversions(bookFile.format);
 		if (!supported.includes(data.targetFormat.toLowerCase())) {
@@ -49,17 +51,22 @@ export const requestConversionFn = createServerFn({ method: "POST" })
 	});
 
 export const getSupportedConversionsFn = createServerFn({ method: "GET" })
-	.validator((raw: unknown) => z.object({ format: z.string() }).parse(raw))
+	.inputValidator((raw: unknown) => z.object({ format: z.string() }).parse(raw))
 	.handler(({ data }) => {
 		return getSupportedConversions(data.format);
 	});
 
 export const getJobsForBookFn = createServerFn({ method: "GET" })
-	.validator((raw: unknown) =>
+	.inputValidator((raw: unknown) =>
 		z.object({ bookId: z.number().int() }).parse(raw),
 	)
 	.handler(async ({ data }) => {
-		await requireAuth();
+		const session = await requireAuth();
+		await assertUserCanAccessBook(
+			session.user.id,
+			data.bookId,
+			session.user.role,
+		);
 
 		const files = await db
 			.select({ id: bookFiles.id })

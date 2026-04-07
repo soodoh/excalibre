@@ -35,6 +35,9 @@ import { getShelvesFn } from "src/server/shelves";
 
 export default function AppSidebar(): JSX.Element {
 	const { data: session } = useSession();
+	const sessionUser = session?.user as
+		| { role?: "admin" | "user"; email?: string | null }
+		| undefined;
 	const routerState = useRouterState();
 	const currentPath = routerState.location.pathname;
 
@@ -233,7 +236,7 @@ export default function AppSidebar(): JSX.Element {
 					</SidebarGroupContent>
 				</SidebarGroup>
 
-				{session?.user.role === "admin" && (
+				{sessionUser?.role === "admin" && (
 					<SidebarGroup>
 						<SidebarGroupLabel>Admin</SidebarGroupLabel>
 						<SidebarGroupContent>
@@ -260,9 +263,9 @@ export default function AppSidebar(): JSX.Element {
 
 			<SidebarFooter className="border-t border-sidebar-border p-4">
 				<div className="flex flex-col gap-2">
-					{session?.user.email && (
+					{sessionUser?.email && (
 						<p className="truncate text-xs text-muted-foreground">
-							{session.user.email}
+							{sessionUser.email}
 						</p>
 					)}
 					<Button variant="outline" size="sm" onClick={handleSignOut}>

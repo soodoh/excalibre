@@ -1,9 +1,11 @@
 import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db } from "src/db";
-import { libraryAccess } from "src/db/schema";
+import { user } from "src/db/schema";
 import { auth } from "src/lib/auth";
+import { assertUserCanAccessLibrary } from "src/server/access-control";
+import { ForbiddenError, UnauthorizedError } from "src/server/http-errors";
 
 export const getAuthSessionFn = createServerFn({ method: "GET" }).handler(
 	async () => {
@@ -11,7 +13,23 @@ export const getAuthSessionFn = createServerFn({ method: "GET" }).handler(
 		const session = await auth.api.getSession({
 			headers: request.headers,
 		});
-		return session;
+
+		if (!session) {
+			return null;
+		}
+
+		const userRecord = await db.query.user.findFirst({
+			where: eq(user.id, session.user.id),
+			columns: { role: true },
+		});
+
+		return {
+			...session,
+			user: {
+				...session.user,
+				role: userRecord?.role ?? "user",
+			},
+		};
 	},
 );
 
@@ -20,17 +38,19 @@ type AuthSession = NonNullable<Awaited<ReturnType<typeof getAuthSessionFn>>>;
 export async function requireAuth(): Promise<AuthSession> {
 	const session = await getAuthSessionFn();
 	if (!session) {
-		throw new Error("Unauthorized");
+		throw new UnauthorizedError();
 	}
-	const { ensureSchedulerStarted } = await import("./scheduler");
-	ensureSchedulerStarted();
+	if (import.meta.env.SSR) {
+		const { ensureSchedulerStarted } = await import("./scheduler");
+		ensureSchedulerStarted();
+	}
 	return session;
 }
 
 export async function requireAdmin(): Promise<AuthSession> {
 	const session = await requireAuth();
 	if (session.user.role !== "admin") {
-		throw new Error("Forbidden: admin access required");
+		throw new ForbiddenError("Forbidden: admin access required");
 	}
 	return session;
 }
@@ -39,17 +59,10 @@ export async function requireLibraryAccess(
 	libraryId: number,
 ): Promise<AuthSession> {
 	const session = await requireAuth();
-	if (session.user.role === "admin") {
-		return session;
-	}
-	const access = await db.query.libraryAccess.findFirst({
-		where: and(
-			eq(libraryAccess.userId, session.user.id),
-			eq(libraryAccess.libraryId, libraryId),
-		),
-	});
-	if (!access) {
-		throw new Error("Forbidden: no access to this library");
-	}
+	await assertUserCanAccessLibrary(
+		session.user.id,
+		libraryId,
+		session.user.role,
+	);
 	return session;
 }

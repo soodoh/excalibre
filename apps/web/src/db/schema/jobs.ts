@@ -8,8 +8,10 @@ export const jobs = sqliteTable("jobs", {
 	})
 		.notNull()
 		.default("pending"),
-	payload: text("payload", { mode: "json" }).$type<Record<string, unknown>>(),
-	result: text("result", { mode: "json" }).$type<Record<string, unknown>>(),
+	// biome-ignore lint/complexity/noBannedTypes: Required for current Drizzle JSON column inference.
+	payload: text("payload", { mode: "json" }).$type<Record<string, {}>>(),
+	// biome-ignore lint/complexity/noBannedTypes: Required for current Drizzle JSON column inference.
+	result: text("result", { mode: "json" }).$type<Record<string, {}>>(),
 	error: text("error"),
 	priority: integer("priority").notNull().default(0),
 	attempts: integer("attempts").notNull().default(0),

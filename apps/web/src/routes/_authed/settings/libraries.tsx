@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
+import type { JSX } from "react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { LibraryForm } from "src/components/settings/library-form";

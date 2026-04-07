@@ -11,6 +11,7 @@ import {
 	Rss,
 	Trash2,
 } from "lucide-react";
+import type { JSX } from "react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "src/components/ui/button";

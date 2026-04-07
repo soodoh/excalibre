@@ -2,6 +2,9 @@ import { integer, sqliteTable, text, unique } from "drizzle-orm/sqlite-core";
 import { user } from "./auth";
 import { books } from "./books";
 
+// biome-ignore lint/complexity/noBannedTypes: Required for current Drizzle JSON column inference.
+type JsonRecord = Record<string, {}>;
+
 export const shelves = sqliteTable("shelves", {
 	id: integer("id").primaryKey({ autoIncrement: true }),
 	name: text("name").notNull(),
@@ -11,9 +14,7 @@ export const shelves = sqliteTable("shelves", {
 	type: text("type", { enum: ["smart", "manual"] })
 		.notNull()
 		.default("manual"),
-	filterRules: text("filter_rules", { mode: "json" }).$type<
-		Record<string, unknown>
-	>(),
+	filterRules: text("filter_rules", { mode: "json" }).$type<JsonRecord>(),
 	sortOrder: integer("sort_order").notNull().default(0),
 	createdAt: integer("created_at", { mode: "timestamp" })
 		.notNull()

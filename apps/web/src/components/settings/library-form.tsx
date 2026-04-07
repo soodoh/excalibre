@@ -3,6 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQueryClient } from "@tanstack/react-query";
 import { PlusIcon, XIcon } from "lucide-react";
+import type { JSX } from "react";
 import { useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -32,7 +33,10 @@ import {
 	SelectValue,
 } from "src/components/ui/select";
 import { queryKeys } from "src/lib/query-keys";
-import type { CreateLibraryInput } from "src/lib/validators";
+import type {
+	CreateLibraryFormInput,
+	CreateLibraryInput,
+} from "src/lib/validators";
 import { createLibrarySchema } from "src/lib/validators";
 import { createLibraryFn, updateLibraryFn } from "src/server/libraries";
 
@@ -57,7 +61,7 @@ export function LibraryForm({
 	const queryClient = useQueryClient();
 	const isEdit = library !== undefined;
 
-	const form = useForm<CreateLibraryInput>({
+	const form = useForm<CreateLibraryFormInput, undefined, CreateLibraryInput>({
 		resolver: zodResolver(createLibrarySchema),
 		defaultValues: {
 			name: library?.name ?? "",

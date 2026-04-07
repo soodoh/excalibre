@@ -85,8 +85,8 @@ export const Route = createFileRoute("/api/kobo/$token/v1/initialization")({
 						user_wishlist: `${baseUrl}/`,
 						wishlists: `${baseUrl}/`,
 						image_host: baseUrl,
-						image_url_template: `${baseUrl}/api/covers/{ImageId}`,
-						image_url_quality_template: `${baseUrl}/api/covers/{ImageId}`,
+						image_url_template: `${baseUrl}/api/covers/{ImageId}?koboToken=${params.token}`,
+						image_url_quality_template: `${baseUrl}/api/covers/{ImageId}?koboToken=${params.token}`,
 					},
 				});
 			},

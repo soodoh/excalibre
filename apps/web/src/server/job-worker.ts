@@ -36,7 +36,8 @@ async function processNextJob(): Promise<boolean> {
 	const isFinalAttempt = job.attempts + 1 >= job.maxAttempts;
 
 	try {
-		let result: Record<string, unknown> = {};
+		// biome-ignore lint/complexity/noBannedTypes: Matches the current jobs table JSON typing.
+		let result: Record<string, {}> = {};
 
 		if (job.type === "convert") {
 			const payload = job.payload as {

@@ -34,8 +34,13 @@ export const Route = createFileRoute("/api/opds/search")({
 
 				if (!query.trim()) {
 					const xml =
-						opdsHeader("urn:excalibre:opds:search", title, selfHref, baseUrl) +
-						opdsFooter();
+						opdsHeader(
+							"urn:excalibre:opds:search",
+							title,
+							selfHref,
+							baseUrl,
+							auth,
+						) + opdsFooter();
 					return opdsXmlResponse(xml);
 				}
 
@@ -43,8 +48,13 @@ export const Route = createFileRoute("/api/opds/search")({
 
 				if (libraryIds.length === 0) {
 					const xml =
-						opdsHeader("urn:excalibre:opds:search", title, selfHref, baseUrl) +
-						opdsFooter();
+						opdsHeader(
+							"urn:excalibre:opds:search",
+							title,
+							selfHref,
+							baseUrl,
+							auth,
+						) + opdsFooter();
 					return opdsXmlResponse(xml);
 				}
 
@@ -84,6 +94,7 @@ export const Route = createFileRoute("/api/opds/search")({
 					title,
 					selfHref,
 					baseUrl,
+					auth,
 				);
 
 				xml += `  <opensearch:totalResults xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/">${bookRows.length}</opensearch:totalResults>\n`;
@@ -91,7 +102,7 @@ export const Route = createFileRoute("/api/opds/search")({
 				for (const book of bookRows) {
 					const files = allFiles.filter((f) => f.bookId === book.id);
 					const bookAuthors = allAuthorRows.filter((a) => a.bookId === book.id);
-					xml += opdsBookEntry(book, files, bookAuthors, baseUrl);
+					xml += opdsBookEntry(book, files, bookAuthors, baseUrl, auth);
 				}
 
 				xml += opdsFooter();
