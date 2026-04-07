@@ -1,5 +1,5 @@
 import { verifyPassword } from "better-auth/crypto";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "src/db";
 import { account, bookFiles, user } from "src/db/schema";
 
@@ -21,13 +21,12 @@ export async function verifyStatelessCredentials(
 		return null;
 	}
 
-	const credentialAccounts = await db.query.account.findMany({
-		where: eq(account.userId, userRecord.id),
+	const credentialAccount = await db.query.account.findFirst({
+		where: and(
+			eq(account.userId, userRecord.id),
+			eq(account.providerId, "credential"),
+		),
 	});
-
-	const credentialAccount = credentialAccounts.find(
-		(record) => record.providerId === "credential" && record.password,
-	);
 
 	if (!credentialAccount?.password) {
 		return null;
