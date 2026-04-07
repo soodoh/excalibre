@@ -3,11 +3,22 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 
 const eqMock = vi.fn((field: unknown, value: unknown) => ({ field, value }));
 const andMock = vi.fn((...clauses: unknown[]) => ({ clauses }));
+const selectMock = vi.fn();
+const fromMock = vi.fn();
+const leftJoinMock = vi.fn();
+const whereMock = vi.fn();
+const getMock = vi.fn();
 const userFindFirst = vi.fn();
 const accountFindFirst = vi.fn();
 const opdsApiKeyFindFirst = vi.fn();
 const signInEmail = vi.fn();
 const fetchMock = vi.fn(() => Promise.reject(new Error("unexpected fetch")));
+const selectChain = {
+	from: fromMock,
+	leftJoin: leftJoinMock,
+	where: whereMock,
+	get: getMock,
+};
 
 vi.mock("drizzle-orm", () => ({
 	eq: eqMock,
@@ -16,6 +27,7 @@ vi.mock("drizzle-orm", () => ({
 
 vi.mock("src/db", () => ({
 	db: {
+		select: selectMock,
 		query: {
 			user: {
 				findFirst: userFindFirst,
@@ -42,11 +54,15 @@ describe("authenticateOpds", () => {
 	beforeEach(() => {
 		vi.resetAllMocks();
 		vi.stubGlobal("fetch", fetchMock);
+		selectMock.mockReturnValue(selectChain);
+		fromMock.mockReturnValue(selectChain);
+		leftJoinMock.mockReturnValue(selectChain);
+		whereMock.mockReturnValue(selectChain);
 	});
 
-	test("uses stateless password verification for basic auth without calling fetch", async () => {
+	test("uses one stateless query for basic auth without calling fetch", async () => {
 		const passwordHash = await hashPassword("correct-horse");
-		userFindFirst.mockResolvedValueOnce({
+		getMock.mockResolvedValueOnce({
 			id: "user-1",
 			email: "reader@example.com",
 			name: "Reader",
@@ -54,13 +70,7 @@ describe("authenticateOpds", () => {
 			role: "reader",
 			createdAt: new Date("2026-04-07T00:00:00.000Z"),
 			updatedAt: new Date("2026-04-07T00:00:00.000Z"),
-		});
-		accountFindFirst.mockResolvedValueOnce({
-			id: "account-1",
-			accountId: "user-1",
-			providerId: "credential",
-			userId: "user-1",
-			password: passwordHash,
+			credentialPassword: passwordHash,
 		});
 
 		const { authenticateOpds } = await import("src/server/opds");
@@ -78,16 +88,18 @@ describe("authenticateOpds", () => {
 			expect.anything(),
 			"reader@example.com",
 		);
-		expect(eqMock).toHaveBeenCalledWith(expect.anything(), "user-1");
+		expect(selectMock).toHaveBeenCalledTimes(1);
+		expect(leftJoinMock).toHaveBeenCalledTimes(1);
+		expect(andMock).toHaveBeenCalledTimes(1);
 		expect(signInEmail).not.toHaveBeenCalled();
-		expect(accountFindFirst).toHaveBeenCalledTimes(1);
-		expect(userFindFirst).toHaveBeenCalledTimes(1);
+		expect(userFindFirst).not.toHaveBeenCalled();
+		expect(accountFindFirst).not.toHaveBeenCalled();
 		expect(fetchMock).not.toHaveBeenCalled();
 	});
 
 	test("returns null for invalid basic auth without calling fetch", async () => {
 		const passwordHash = await hashPassword("correct-horse");
-		userFindFirst.mockResolvedValueOnce({
+		getMock.mockResolvedValueOnce({
 			id: "user-1",
 			email: "reader@example.com",
 			name: "Reader",
@@ -95,13 +107,7 @@ describe("authenticateOpds", () => {
 			role: "reader",
 			createdAt: new Date("2026-04-07T00:00:00.000Z"),
 			updatedAt: new Date("2026-04-07T00:00:00.000Z"),
-		});
-		accountFindFirst.mockResolvedValueOnce({
-			id: "account-1",
-			accountId: "user-1",
-			providerId: "credential",
-			userId: "user-1",
-			password: passwordHash,
+			credentialPassword: passwordHash,
 		});
 
 		const { authenticateOpds } = await import("src/server/opds");
@@ -116,10 +122,13 @@ describe("authenticateOpds", () => {
 			expect.anything(),
 			"reader@example.com",
 		);
-		expect(eqMock).toHaveBeenCalledWith(expect.anything(), "user-1");
 		expect(eqMock).toHaveBeenCalledWith(expect.anything(), "credential");
+		expect(selectMock).toHaveBeenCalledTimes(1);
+		expect(leftJoinMock).toHaveBeenCalledTimes(1);
+		expect(andMock).toHaveBeenCalledTimes(1);
 		expect(signInEmail).not.toHaveBeenCalled();
-		expect(accountFindFirst).toHaveBeenCalledTimes(1);
+		expect(userFindFirst).not.toHaveBeenCalled();
+		expect(accountFindFirst).not.toHaveBeenCalled();
 		expect(fetchMock).not.toHaveBeenCalled();
 	});
 

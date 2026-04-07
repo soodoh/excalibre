@@ -3,10 +3,21 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 
 const eqMock = vi.fn((field: unknown, value: unknown) => ({ field, value }));
 const andMock = vi.fn((...clauses: unknown[]) => ({ clauses }));
+const selectMock = vi.fn();
+const fromMock = vi.fn();
+const leftJoinMock = vi.fn();
+const whereMock = vi.fn();
+const getMock = vi.fn();
 const userFindFirst = vi.fn();
 const accountFindFirst = vi.fn();
 const signInEmail = vi.fn();
 const fetchMock = vi.fn(() => Promise.reject(new Error("unexpected fetch")));
+const selectChain = {
+	from: fromMock,
+	leftJoin: leftJoinMock,
+	where: whereMock,
+	get: getMock,
+};
 
 vi.mock("drizzle-orm", () => ({
 	eq: eqMock,
@@ -24,6 +35,7 @@ vi.mock("better-auth/crypto", async (importOriginal) => {
 
 vi.mock("src/db", () => ({
 	db: {
+		select: selectMock,
 		query: {
 			user: {
 				findFirst: userFindFirst,
@@ -47,25 +59,24 @@ describe("authenticateKosync", () => {
 	beforeEach(() => {
 		vi.resetAllMocks();
 		vi.stubGlobal("fetch", fetchMock);
+		selectMock.mockReturnValue(selectChain);
+		fromMock.mockReturnValue(selectChain);
+		leftJoinMock.mockReturnValue(selectChain);
+		whereMock.mockReturnValue(selectChain);
 	});
 
-	test("uses stateless password verification for header auth without calling fetch", async () => {
+	test("uses one stateless query for header auth without calling fetch", async () => {
 		const passwordHash = await hashPassword("correct-horse");
-		userFindFirst.mockResolvedValueOnce({
+		getMock.mockResolvedValueOnce({
 			id: "user-1",
 			email: "reader@example.com",
+			emailVerified: false,
 			name: "Reader",
 			image: null,
 			role: "reader",
 			createdAt: new Date("2026-04-07T00:00:00.000Z"),
 			updatedAt: new Date("2026-04-07T00:00:00.000Z"),
-		});
-		accountFindFirst.mockResolvedValueOnce({
-			id: "account-1",
-			accountId: "user-1",
-			providerId: "credential",
-			userId: "user-1",
-			password: passwordHash,
+			credentialPassword: passwordHash,
 		});
 
 		const { authenticateKosync } = await import("src/server/kosync");
@@ -79,6 +90,7 @@ describe("authenticateKosync", () => {
 		await expect(authenticateKosync(request)).resolves.toEqual({
 			id: "user-1",
 			email: "reader@example.com",
+			emailVerified: false,
 			name: "Reader",
 			image: null,
 			role: "reader",
@@ -89,15 +101,17 @@ describe("authenticateKosync", () => {
 			expect.anything(),
 			"reader@example.com",
 		);
-		expect(eqMock).toHaveBeenCalledWith(expect.anything(), "user-1");
 		expect(eqMock).toHaveBeenCalledWith(expect.anything(), "credential");
+		expect(selectMock).toHaveBeenCalledTimes(1);
+		expect(leftJoinMock).toHaveBeenCalledTimes(1);
+		expect(andMock).toHaveBeenCalledTimes(1);
 		expect(signInEmail).not.toHaveBeenCalled();
 		expect(verifyPassword).toHaveBeenCalledWith({
 			hash: passwordHash,
 			password: "correct-horse",
 		});
-		expect(accountFindFirst).toHaveBeenCalledTimes(1);
-		expect(userFindFirst).toHaveBeenCalledTimes(1);
+		expect(userFindFirst).not.toHaveBeenCalled();
+		expect(accountFindFirst).not.toHaveBeenCalled();
 		expect(fetchMock).not.toHaveBeenCalled();
 	});
 
@@ -105,7 +119,7 @@ describe("authenticateKosync", () => {
 		const { authenticateKosync, DUMMY_PASSWORD_HASH } = await import(
 			"src/server/kosync"
 		);
-		userFindFirst.mockResolvedValueOnce(null);
+		getMock.mockResolvedValueOnce(null);
 
 		const request = new Request("https://example.com/api/kosync/users/auth", {
 			headers: {
@@ -115,7 +129,9 @@ describe("authenticateKosync", () => {
 		});
 
 		await expect(authenticateKosync(request)).resolves.toBeNull();
-		expect(accountFindFirst).not.toHaveBeenCalled();
+		expect(selectMock).toHaveBeenCalledTimes(1);
+		expect(leftJoinMock).toHaveBeenCalledTimes(1);
+		expect(andMock).toHaveBeenCalledTimes(1);
 		expect(verifyPassword).toHaveBeenCalledWith({
 			hash: DUMMY_PASSWORD_HASH,
 			password: "wrong-password",
@@ -128,16 +144,17 @@ describe("authenticateKosync", () => {
 		const { authenticateKosync, DUMMY_PASSWORD_HASH } = await import(
 			"src/server/kosync"
 		);
-		userFindFirst.mockResolvedValueOnce({
+		getMock.mockResolvedValueOnce({
 			id: "user-1",
 			email: "reader@example.com",
+			emailVerified: false,
 			name: "Reader",
 			image: null,
 			role: "reader",
 			createdAt: new Date("2026-04-07T00:00:00.000Z"),
 			updatedAt: new Date("2026-04-07T00:00:00.000Z"),
+			credentialPassword: null,
 		});
-		accountFindFirst.mockResolvedValueOnce(null);
 
 		const request = new Request("https://example.com/api/kosync/users/auth", {
 			headers: {
@@ -151,34 +168,32 @@ describe("authenticateKosync", () => {
 			expect.anything(),
 			"reader@example.com",
 		);
-		expect(eqMock).toHaveBeenCalledWith(expect.anything(), "user-1");
 		expect(eqMock).toHaveBeenCalledWith(expect.anything(), "credential");
+		expect(selectMock).toHaveBeenCalledTimes(1);
+		expect(leftJoinMock).toHaveBeenCalledTimes(1);
+		expect(andMock).toHaveBeenCalledTimes(1);
 		expect(verifyPassword).toHaveBeenCalledWith({
 			hash: DUMMY_PASSWORD_HASH,
 			password: "wrong-password",
 		});
 		expect(signInEmail).not.toHaveBeenCalled();
-		expect(accountFindFirst).toHaveBeenCalledTimes(1);
+		expect(userFindFirst).not.toHaveBeenCalled();
+		expect(accountFindFirst).not.toHaveBeenCalled();
 		expect(fetchMock).not.toHaveBeenCalled();
 	});
 
 	test("returns null for invalid header auth without calling fetch", async () => {
 		const passwordHash = await hashPassword("correct-horse");
-		userFindFirst.mockResolvedValueOnce({
+		getMock.mockResolvedValueOnce({
 			id: "user-1",
 			email: "reader@example.com",
+			emailVerified: false,
 			name: "Reader",
 			image: null,
 			role: "reader",
 			createdAt: new Date("2026-04-07T00:00:00.000Z"),
 			updatedAt: new Date("2026-04-07T00:00:00.000Z"),
-		});
-		accountFindFirst.mockResolvedValueOnce({
-			id: "account-1",
-			accountId: "user-1",
-			providerId: "credential",
-			userId: "user-1",
-			password: passwordHash,
+			credentialPassword: passwordHash,
 		});
 
 		const { authenticateKosync } = await import("src/server/kosync");
@@ -195,7 +210,10 @@ describe("authenticateKosync", () => {
 			password: "wrong-password",
 		});
 		expect(signInEmail).not.toHaveBeenCalled();
-		expect(accountFindFirst).toHaveBeenCalledTimes(1);
+		expect(selectMock).toHaveBeenCalledTimes(1);
+		expect(leftJoinMock).toHaveBeenCalledTimes(1);
+		expect(userFindFirst).not.toHaveBeenCalled();
+		expect(accountFindFirst).not.toHaveBeenCalled();
 		expect(fetchMock).not.toHaveBeenCalled();
 	});
 });

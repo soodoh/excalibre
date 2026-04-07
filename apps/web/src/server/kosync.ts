@@ -6,13 +6,6 @@ import { account, bookFiles, user } from "src/db/schema";
 export const DUMMY_PASSWORD_HASH =
 	"ed8eeaec39fb19074f3bad603b89960b:97183ad847dde8b136b6b5b1ba9b23190b5e9751e1debcc22e127263fac45d0cf00ced2681b44caa9a315b9b2207069e929130e7253cdfe88fadea1f58304a64";
 
-async function burnPasswordVerificationWork(password: string): Promise<void> {
-	await verifyPassword({
-		hash: DUMMY_PASSWORD_HASH,
-		password,
-	});
-}
-
 /**
  * Verifies a username/password pair against the canonical Better Auth user
  * record without creating a session.
@@ -23,33 +16,43 @@ export async function verifyStatelessCredentials(
 ): Promise<typeof user.$inferSelect | null> {
 	const normalizedEmail = email.trim().toLowerCase();
 
-	const userRecord = await db.query.user.findFirst({
-		where: eq(user.email, normalizedEmail),
-	});
+	const userRecord = await db
+		.select({
+			id: user.id,
+			name: user.name,
+			email: user.email,
+			emailVerified: user.emailVerified,
+			image: user.image,
+			role: user.role,
+			createdAt: user.createdAt,
+			updatedAt: user.updatedAt,
+			credentialPassword: account.password,
+		})
+		.from(user)
+		.leftJoin(
+			account,
+			and(eq(user.id, account.userId), eq(account.providerId, "credential")),
+		)
+		.where(eq(user.email, normalizedEmail))
+		.get();
 
-	if (!userRecord) {
-		await burnPasswordVerificationWork(password);
+	const passwordHash = userRecord?.credentialPassword ?? DUMMY_PASSWORD_HASH;
+	const isValid = await verifyPassword({ hash: passwordHash, password });
+
+	if (!isValid || !userRecord || !userRecord.credentialPassword) {
 		return null;
 	}
 
-	const credentialAccount = await db.query.account.findFirst({
-		where: and(
-			eq(account.userId, userRecord.id),
-			eq(account.providerId, "credential"),
-		),
-	});
-
-	if (!credentialAccount?.password) {
-		await burnPasswordVerificationWork(password);
-		return null;
-	}
-
-	const isValid = await verifyPassword({
-		hash: credentialAccount.password,
-		password,
-	});
-
-	return isValid ? userRecord : null;
+	return {
+		id: userRecord.id,
+		name: userRecord.name,
+		email: userRecord.email,
+		emailVerified: userRecord.emailVerified,
+		image: userRecord.image,
+		role: userRecord.role,
+		createdAt: userRecord.createdAt,
+		updatedAt: userRecord.updatedAt,
+	};
 }
 
 /**
