@@ -21,6 +21,7 @@ import {
 	getFileFormat,
 	isSupportedFormat,
 } from "src/server/extractors";
+import { resolveLibraryScanPath } from "src/server/path-safety";
 
 const DATA_DIR = process.env.DATA_DIR ?? "data";
 const EXCALIBRE_DIR = process.env.EXCALIBRE_DIR ?? "data/excalibre";
@@ -318,7 +319,7 @@ export async function scanLibrary(libraryId: number): Promise<ScanResult> {
 	const foundPaths = new Set<string>();
 
 	for (const scanPath of library.scanPaths) {
-		const fullScanPath = path.join(DATA_DIR, scanPath);
+		const fullScanPath = resolveLibraryScanPath(DATA_DIR, scanPath);
 		const files = walkDir(fullScanPath);
 
 		for (const filePath of files) {

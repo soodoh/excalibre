@@ -1,5 +1,28 @@
 import { z } from "zod";
 
+function isValidLibraryScanPath(scanPath: string): boolean {
+	if (/^([a-zA-Z]:[\\/]|\\\\|\/)/.test(scanPath)) {
+		return false;
+	}
+
+	let depth = 0;
+	for (const segment of scanPath.split(/[\\/]+/)) {
+		if (segment.length === 0 || segment === ".") {
+			continue;
+		}
+		if (segment === "..") {
+			if (depth === 0) {
+				return false;
+			}
+			depth -= 1;
+			continue;
+		}
+		depth += 1;
+	}
+
+	return true;
+}
+
 export const createShelfSchema = z.object({
 	name: z.string().min(1, "Name is required"),
 	type: z.enum(["smart", "manual"]),
@@ -22,7 +45,14 @@ export const createLibrarySchema = z.object({
 	name: z.string().min(1, "Name is required"),
 	type: z.enum(["book", "comic", "manga"]),
 	scanPaths: z
-		.array(z.string().min(1))
+		.array(
+			z
+				.string()
+				.min(1)
+				.refine((value) => isValidLibraryScanPath(value), {
+					message: "Scan paths cannot escape DATA_DIR",
+				}),
+		)
 		.min(1, "At least one scan path is required"),
 	scanInterval: z.number().int().min(1).default(30),
 });
