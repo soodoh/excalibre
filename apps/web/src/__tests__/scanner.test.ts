@@ -20,6 +20,7 @@ const dbSelect = vi.fn();
 const dbUpdate = vi.fn();
 const dbInsert = vi.fn();
 const dbDelete = vi.fn();
+const dbTransaction = vi.fn();
 
 const extractMetadataMock = vi.fn();
 const isSupportedFormatMock = vi.fn();
@@ -30,6 +31,7 @@ vi.mock("src/db", () => ({
 		update: dbUpdate,
 		insert: dbInsert,
 		delete: dbDelete,
+		transaction: dbTransaction,
 		query: {
 			libraries: {
 				findFirst: librariesFindFirst,
@@ -61,7 +63,6 @@ vi.mock("src/server/extractors", () => ({
 
 afterEach(() => {
 	vi.restoreAllMocks();
-	vi.resetModules();
 	vi.resetAllMocks();
 });
 
@@ -71,6 +72,31 @@ describe("scanLibrary rescans", () => {
 		const updateCalls: Array<{ table: unknown; values: unknown }> = [];
 		const insertCalls: Array<{ table: unknown; values: unknown }> = [];
 		const deleteCalls: unknown[] = [];
+		const transactionalDb = {
+			update: (table: unknown) => ({
+				set: (values: unknown) => {
+					updateCalls.push({ table, values });
+					return {
+						where: () => Promise.resolve(),
+					};
+				},
+			}),
+			insert: (table: unknown) => ({
+				values: (values: unknown) => {
+					insertCalls.push({ table, values });
+					if (table === booksAuthors || table === booksTags) {
+						return Promise.resolve();
+					}
+					throw new Error("unexpected transactional insert");
+				},
+			}),
+			delete: (table: unknown) => {
+				deleteCalls.push(table);
+				return {
+					where: () => Promise.resolve(),
+				};
+			},
+		};
 
 		librariesFindFirst.mockResolvedValue({
 			id: 1,
@@ -138,6 +164,9 @@ describe("scanLibrary rescans", () => {
 				return Promise.resolve();
 			},
 		}));
+		dbTransaction.mockImplementation(async (callback) =>
+			callback(transactionalDb),
+		);
 
 		extractMetadataMock.mockResolvedValue({
 			metadata: {
@@ -185,6 +214,7 @@ describe("scanLibrary rescans", () => {
 		expect(deleteCalls).toEqual(
 			expect.arrayContaining([booksAuthors, booksTags]),
 		);
+		expect(dbTransaction).toHaveBeenCalledTimes(1);
 		expect(insertCalls).toEqual(
 			expect.arrayContaining([
 				expect.objectContaining({
@@ -196,6 +226,142 @@ describe("scanLibrary rescans", () => {
 					values: { bookId: 10, tagId: 43 },
 				}),
 			]),
+		);
+	});
+
+	test("rescans tolerate duplicate authors and tags in metadata", async () => {
+		const filePath = path.join("data", "library", "book.epub");
+		const insertCalls: Array<{ table: unknown; values: unknown }> = [];
+		const seenAuthorLinks = new Set<string>();
+		const seenTagLinks = new Set<string>();
+		const transactionalDb = {
+			update: () => ({
+				set: () => ({
+					where: () => Promise.resolve(),
+				}),
+			}),
+			insert: (table: unknown) => ({
+				values: (values: unknown) => {
+					insertCalls.push({ table, values });
+					if (table === booksAuthors) {
+						const key = JSON.stringify(values);
+						if (seenAuthorLinks.has(key)) {
+							return Promise.reject(new Error("duplicate author link"));
+						}
+						seenAuthorLinks.add(key);
+						return Promise.resolve();
+					}
+					if (table === booksTags) {
+						const key = JSON.stringify(values);
+						if (seenTagLinks.has(key)) {
+							return Promise.reject(new Error("duplicate tag link"));
+						}
+						seenTagLinks.add(key);
+						return Promise.resolve();
+					}
+					throw new Error("unexpected transactional insert");
+				},
+			}),
+			delete: () => ({
+				where: () => Promise.resolve(),
+			}),
+		};
+
+		librariesFindFirst.mockResolvedValue({
+			id: 1,
+			name: "Library",
+			type: "book",
+			scanPaths: ["library"],
+			scanInterval: 30,
+			lastScannedAt: null,
+			createdAt: new Date(),
+			updatedAt: new Date(),
+		});
+		bookFilesFindFirst.mockResolvedValue({
+			id: 1,
+			bookId: 10,
+			filePath,
+			fileHash: "old-hash",
+		});
+		booksFindFirst.mockResolvedValue({
+			id: 10,
+			libraryId: 1,
+		});
+		seriesFindFirst.mockResolvedValue(null);
+		authorsFindFirst.mockImplementation(async () => null);
+		tagsFindFirst.mockImplementation(async () => null);
+
+		dbSelect.mockReturnValue({
+			from: () => ({
+				innerJoin: () => ({
+					where: () => Promise.resolve([{ filePath }]),
+				}),
+			}),
+		});
+		dbUpdate.mockReturnValue({
+			set: () => ({
+				where: () => Promise.resolve(),
+			}),
+		});
+		dbInsert.mockImplementation((table) => ({
+			values: () => {
+				if (table === authors) {
+					return {
+						returning: () => Promise.resolve([{ id: 42 }]),
+					};
+				}
+				if (table === tags) {
+					return {
+						returning: () => Promise.resolve([{ id: 43 }]),
+					};
+				}
+				throw new Error("unexpected insert");
+			},
+		}));
+		dbTransaction.mockImplementation(async (callback) =>
+			callback(transactionalDb),
+		);
+
+		extractMetadataMock.mockResolvedValue({
+			metadata: {
+				title: "New Title",
+				authors: ["New Author", "New Author"],
+				tags: ["Sci-Fi", "Sci-Fi"],
+				series: null,
+				seriesIndex: null,
+			},
+			cover: null,
+		});
+		isSupportedFormatMock.mockReturnValue(true);
+
+		vi.spyOn(fs, "readdirSync").mockReturnValue([
+			{
+				name: "book.epub",
+				isDirectory: () => false,
+				isFile: () => true,
+			} as fs.Dirent,
+		]);
+		vi.spyOn(fs, "statSync").mockReturnValue({
+			size: 123,
+			mtimeMs: 456,
+		} as fs.Stats);
+		vi.spyOn(fs, "readFileSync").mockReturnValue(Buffer.from("content"));
+
+		const { scanLibrary } = await import("src/server/scanner");
+
+		const result = await scanLibrary(1);
+
+		expect(dbTransaction).toHaveBeenCalledTimes(1);
+		expect(result).toEqual({
+			added: 0,
+			updated: 1,
+			missing: 0,
+		});
+		expect(
+			insertCalls.filter((call) => call.table === booksAuthors),
+		).toHaveLength(1);
+		expect(insertCalls.filter((call) => call.table === booksTags)).toHaveLength(
+			1,
 		);
 	});
 });

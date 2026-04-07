@@ -160,28 +160,72 @@ async function resolveSeriesId(
 	return getOrCreateSeries(name, libraryId);
 }
 
-async function replaceBookAuthors(
-	bookId: number,
-	authorNames: string[],
-): Promise<void> {
-	await db.delete(booksAuthors).where(eq(booksAuthors.bookId, bookId));
+type LinkMutationExecutor = Pick<typeof db, "delete" | "insert">;
 
-	const names = authorNames.length > 0 ? authorNames : ["Unknown"];
+function buildUniqueNames(
+	names: string[],
+	fallbackNames: string[] = [],
+): string[] {
+	const sourceNames = names.length > 0 ? names : fallbackNames;
+	const uniqueNames: string[] = [];
+	const seen = new Set<string>();
+
+	for (const name of sourceNames) {
+		if (seen.has(name)) {
+			continue;
+		}
+		seen.add(name);
+		uniqueNames.push(name);
+	}
+
+	return uniqueNames;
+}
+
+async function resolveAuthorIds(authorNames: string[]): Promise<number[]> {
+	const names = buildUniqueNames(authorNames, ["Unknown"]);
+	const authorIds: number[] = [];
+
 	for (const authorName of names) {
-		const authorId = await getOrCreateAuthor(authorName);
-		await db.insert(booksAuthors).values({ bookId, authorId, role: "author" });
+		authorIds.push(await getOrCreateAuthor(authorName));
+	}
+
+	return authorIds;
+}
+
+async function resolveTagIds(tagNames: string[]): Promise<number[]> {
+	const names = buildUniqueNames(tagNames);
+	const tagIds: number[] = [];
+
+	for (const tagName of names) {
+		tagIds.push(await getOrCreateTag(tagName));
+	}
+
+	return tagIds;
+}
+
+async function replaceBookAuthors(
+	executor: LinkMutationExecutor,
+	bookId: number,
+	authorIds: number[],
+): Promise<void> {
+	await executor.delete(booksAuthors).where(eq(booksAuthors.bookId, bookId));
+
+	for (const authorId of authorIds) {
+		await executor
+			.insert(booksAuthors)
+			.values({ bookId, authorId, role: "author" });
 	}
 }
 
 async function replaceBookTags(
+	executor: LinkMutationExecutor,
 	bookId: number,
-	tagNames: string[],
+	tagIds: number[],
 ): Promise<void> {
-	await db.delete(booksTags).where(eq(booksTags.bookId, bookId));
+	await executor.delete(booksTags).where(eq(booksTags.bookId, bookId));
 
-	for (const tagName of tagNames) {
-		const tagId = await getOrCreateTag(tagName);
-		await db.insert(booksTags).values({ bookId, tagId });
+	for (const tagId of tagIds) {
+		await executor.insert(booksTags).values({ bookId, tagId });
 	}
 }
 
@@ -321,9 +365,14 @@ async function processUpdatedFile(
 		updatedAt: new Date(),
 	};
 
-	await db.update(books).set(updateValues).where(eq(books.id, bookId));
-	await replaceBookAuthors(bookId, metadata.authors);
-	await replaceBookTags(bookId, metadata.tags ?? []);
+	const authorIds = await resolveAuthorIds(metadata.authors);
+	const tagIds = await resolveTagIds(metadata.tags ?? []);
+
+	await db.transaction(async (tx) => {
+		await tx.update(books).set(updateValues).where(eq(books.id, bookId));
+		await replaceBookAuthors(tx, bookId, authorIds);
+		await replaceBookTags(tx, bookId, tagIds);
+	});
 
 	// Update cover
 	if (cover) {
