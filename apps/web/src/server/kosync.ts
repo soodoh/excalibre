@@ -3,6 +3,16 @@ import { and, eq } from "drizzle-orm";
 import { db } from "src/db";
 import { account, bookFiles, user } from "src/db/schema";
 
+export const DUMMY_PASSWORD_HASH =
+	"ed8eeaec39fb19074f3bad603b89960b:97183ad847dde8b136b6b5b1ba9b23190b5e9751e1debcc22e127263fac45d0cf00ced2681b44caa9a315b9b2207069e929130e7253cdfe88fadea1f58304a64";
+
+async function burnPasswordVerificationWork(password: string): Promise<void> {
+	await verifyPassword({
+		hash: DUMMY_PASSWORD_HASH,
+		password,
+	});
+}
+
 /**
  * Verifies a username/password pair against the canonical Better Auth user
  * record without creating a session.
@@ -18,6 +28,7 @@ export async function verifyStatelessCredentials(
 	});
 
 	if (!userRecord) {
+		await burnPasswordVerificationWork(password);
 		return null;
 	}
 
@@ -29,6 +40,7 @@ export async function verifyStatelessCredentials(
 	});
 
 	if (!credentialAccount?.password) {
+		await burnPasswordVerificationWork(password);
 		return null;
 	}
 

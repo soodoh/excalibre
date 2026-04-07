@@ -1,4 +1,4 @@
-import { hashPassword } from "better-auth/crypto";
+import { hashPassword, verifyPassword } from "better-auth/crypto";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
 const eqMock = vi.fn((field: unknown, value: unknown) => ({ field, value }));
@@ -12,6 +12,15 @@ vi.mock("drizzle-orm", () => ({
 	eq: eqMock,
 	and: andMock,
 }));
+
+vi.mock("better-auth/crypto", async (importOriginal) => {
+	const actual = await importOriginal<typeof import("better-auth/crypto")>();
+
+	return {
+		...actual,
+		verifyPassword: vi.fn(actual.verifyPassword),
+	};
+});
 
 vi.mock("src/db", () => ({
 	db: {
@@ -83,8 +92,73 @@ describe("authenticateKosync", () => {
 		expect(eqMock).toHaveBeenCalledWith(expect.anything(), "user-1");
 		expect(eqMock).toHaveBeenCalledWith(expect.anything(), "credential");
 		expect(signInEmail).not.toHaveBeenCalled();
+		expect(verifyPassword).toHaveBeenCalledWith({
+			hash: passwordHash,
+			password: "correct-horse",
+		});
 		expect(accountFindFirst).toHaveBeenCalledTimes(1);
 		expect(userFindFirst).toHaveBeenCalledTimes(1);
+		expect(fetchMock).not.toHaveBeenCalled();
+	});
+
+	test("burns password verification work when the user does not exist", async () => {
+		const { authenticateKosync, DUMMY_PASSWORD_HASH } = await import(
+			"src/server/kosync"
+		);
+		userFindFirst.mockResolvedValueOnce(null);
+
+		const request = new Request("https://example.com/api/kosync/users/auth", {
+			headers: {
+				"x-auth-user": "Missing@Example.com",
+				"x-auth-key": "wrong-password",
+			},
+		});
+
+		await expect(authenticateKosync(request)).resolves.toBeNull();
+		expect(accountFindFirst).not.toHaveBeenCalled();
+		expect(verifyPassword).toHaveBeenCalledWith({
+			hash: DUMMY_PASSWORD_HASH,
+			password: "wrong-password",
+		});
+		expect(signInEmail).not.toHaveBeenCalled();
+		expect(fetchMock).not.toHaveBeenCalled();
+	});
+
+	test("burns password verification work when the credential account is missing", async () => {
+		const { authenticateKosync, DUMMY_PASSWORD_HASH } = await import(
+			"src/server/kosync"
+		);
+		userFindFirst.mockResolvedValueOnce({
+			id: "user-1",
+			email: "reader@example.com",
+			name: "Reader",
+			image: null,
+			role: "reader",
+			createdAt: new Date("2026-04-07T00:00:00.000Z"),
+			updatedAt: new Date("2026-04-07T00:00:00.000Z"),
+		});
+		accountFindFirst.mockResolvedValueOnce(null);
+
+		const request = new Request("https://example.com/api/kosync/users/auth", {
+			headers: {
+				"x-auth-user": "Reader@Example.com",
+				"x-auth-key": "wrong-password",
+			},
+		});
+
+		await expect(authenticateKosync(request)).resolves.toBeNull();
+		expect(eqMock).toHaveBeenCalledWith(
+			expect.anything(),
+			"reader@example.com",
+		);
+		expect(eqMock).toHaveBeenCalledWith(expect.anything(), "user-1");
+		expect(eqMock).toHaveBeenCalledWith(expect.anything(), "credential");
+		expect(verifyPassword).toHaveBeenCalledWith({
+			hash: DUMMY_PASSWORD_HASH,
+			password: "wrong-password",
+		});
+		expect(signInEmail).not.toHaveBeenCalled();
+		expect(accountFindFirst).toHaveBeenCalledTimes(1);
 		expect(fetchMock).not.toHaveBeenCalled();
 	});
 
@@ -116,6 +190,10 @@ describe("authenticateKosync", () => {
 		});
 
 		await expect(authenticateKosync(request)).resolves.toBeNull();
+		expect(verifyPassword).toHaveBeenCalledWith({
+			hash: passwordHash,
+			password: "wrong-password",
+		});
 		expect(signInEmail).not.toHaveBeenCalled();
 		expect(accountFindFirst).toHaveBeenCalledTimes(1);
 		expect(fetchMock).not.toHaveBeenCalled();
