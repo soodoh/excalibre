@@ -1,8 +1,13 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
+const eqMock = vi.fn((field: unknown, value: unknown) => ({ field, value }));
 const userFindFirst = vi.fn();
 const signInEmail = vi.fn();
 const fetchMock = vi.fn(() => Promise.reject(new Error("unexpected fetch")));
+
+vi.mock("drizzle-orm", () => ({
+	eq: eqMock,
+}));
 
 vi.mock("src/db", () => ({
 	db: {
@@ -31,15 +36,20 @@ describe("authenticateKosync", () => {
 	});
 
 	test("uses Better Auth signInEmail for header auth without calling fetch", async () => {
-		userFindFirst.mockResolvedValueOnce({
-			id: "user-1",
-			email: "reader@example.com",
-			name: "Reader",
-			image: null,
-			role: "reader",
-			createdAt: new Date("2026-04-07T00:00:00.000Z"),
-			updatedAt: new Date("2026-04-07T00:00:00.000Z"),
-		});
+		userFindFirst.mockImplementation(
+			({ where }: { where: { value: string } }) =>
+				where.value === "user-1"
+					? {
+							id: "user-1",
+							email: "reader@example.com",
+							name: "Reader",
+							image: null,
+							role: "reader",
+							createdAt: new Date("2026-04-07T00:00:00.000Z"),
+							updatedAt: new Date("2026-04-07T00:00:00.000Z"),
+						}
+					: null,
+		);
 		signInEmail.mockResolvedValueOnce({
 			redirect: false,
 			token: "session-token",
@@ -53,7 +63,7 @@ describe("authenticateKosync", () => {
 		const { authenticateKosync } = await import("src/server/kosync");
 		const request = new Request("https://example.com/api/kosync/users/auth", {
 			headers: {
-				"x-auth-user": "reader@example.com",
+				"x-auth-user": "Reader@Example.com",
 				"x-auth-key": "correct-horse",
 			},
 		});
@@ -70,11 +80,12 @@ describe("authenticateKosync", () => {
 		expect(signInEmail).toHaveBeenCalledWith(
 			expect.objectContaining({
 				body: {
-					email: "reader@example.com",
+					email: "Reader@Example.com",
 					password: "correct-horse",
 				},
 			}),
 		);
+		expect(eqMock).toHaveBeenCalledWith(expect.anything(), "user-1");
 		expect(fetchMock).not.toHaveBeenCalled();
 	});
 
@@ -99,12 +110,7 @@ describe("/api/kosync/users/create", () => {
 		vi.resetAllMocks();
 	});
 
-	test("returns a generic denial response regardless of whether the user exists", async () => {
-		userFindFirst.mockResolvedValueOnce({
-			id: "user-1",
-			email: "reader@example.com",
-		});
-
+	test("returns the same generic success response whether the user exists or not", async () => {
 		const { Route } = await import("src/routes/api/kosync/users.create");
 		const existingUserResponse = await Route.options.server.handlers.POST({
 			request: new Request("https://example.com/api/kosync/users/create", {
@@ -116,22 +122,24 @@ describe("/api/kosync/users/create", () => {
 			}),
 		});
 
-		userFindFirst.mockResolvedValueOnce(null);
-
 		const missingUserResponse = await Route.options.server.handlers.POST({
 			request: new Request("https://example.com/api/kosync/users/create", {
 				method: "POST",
 				body: JSON.stringify({
-					username: "missing@example.com",
+					username: "reader@example.com",
 					password: "correct-horse",
 				}),
 			}),
 		});
 
 		expect(existingUserResponse.status).toBe(missingUserResponse.status);
-		await expect(existingUserResponse.json()).resolves.toEqual(
-			await missingUserResponse.json(),
-		);
-		expect(existingUserResponse.status).toBeGreaterThanOrEqual(400);
+		await expect(existingUserResponse.json()).resolves.toEqual({
+			username: "reader@example.com",
+		});
+		await expect(missingUserResponse.json()).resolves.toEqual({
+			username: "reader@example.com",
+		});
+		expect(existingUserResponse.status).toBe(201);
+		expect(userFindFirst).not.toHaveBeenCalled();
 	});
 });

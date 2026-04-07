@@ -27,12 +27,7 @@ export const Route = createFileRoute("/api/kosync/users/create")({
 					);
 				}
 
-				return Response.json(
-					{
-						message: "Registration is disabled after initial setup.",
-					},
-					{ status: 403 },
-				);
+				return Response.json({ username: email }, { status: 201 });
 			},
 		},
 	},

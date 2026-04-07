@@ -26,19 +26,21 @@ export async function authenticateKosync(
 			request,
 		});
 
-		if (!result.user?.email) {
+		const authenticatedUserId = result.user?.id;
+		if (!authenticatedUserId) {
 			return null;
 		}
+
+		// Resolve the canonical user record by Better Auth's user id so email
+		// normalization does not affect downstream lookups.
+		const userRecord = await db.query.user.findFirst({
+			where: eq(user.id, authenticatedUserId),
+		});
+
+		return userRecord ?? null;
 	} catch {
 		return null;
 	}
-
-	// Fetch and return the user record
-	const userRecord = await db.query.user.findFirst({
-		where: eq(user.email, email),
-	});
-
-	return userRecord ?? null;
 }
 
 /**
