@@ -258,8 +258,29 @@ async function processNewFile(
 			.run();
 	}
 
-	await replaceBookAuthors(bookId, metadata.authors);
-	await replaceBookTags(bookId, metadata.tags ?? []);
+	const authorNames =
+		metadata.authors.length > 0 ? metadata.authors : ["Unknown"];
+	for (const authorName of authorNames) {
+		const authorId = await getOrCreateAuthor(authorName);
+		try {
+			await db
+				.insert(booksAuthors)
+				.values({ bookId, authorId, role: "author" });
+		} catch {
+			// Ignore unique constraint violations
+		}
+	}
+
+	if (metadata.tags && metadata.tags.length > 0) {
+		for (const tagName of metadata.tags) {
+			const tagId = await getOrCreateTag(tagName);
+			try {
+				await db.insert(booksTags).values({ bookId, tagId });
+			} catch {
+				// Ignore unique constraint violations
+			}
+		}
+	}
 }
 
 async function processUpdatedFile(
