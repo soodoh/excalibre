@@ -3,6 +3,7 @@ import { extname } from "node:path";
 import { createFileRoute } from "@tanstack/react-router";
 import { assertUserCanAccessBook } from "src/server/access-control";
 import { responseFromHttpError } from "src/server/http-errors";
+import { createStreamResponse } from "src/server/node-stream-response";
 import { requireRequestAuth } from "src/server/request-auth-resolver";
 
 const MIME_TYPES: Record<string, string> = {
@@ -41,7 +42,7 @@ export async function handleCoverAssetRequest({
 		const contentType = MIME_TYPES[ext] ?? "image/jpeg";
 		const stream = createReadStream(book.coverPath);
 
-		return new Response(stream as unknown as ReadableStream, {
+		return await createStreamResponse(stream, {
 			status: 200,
 			headers: {
 				"Content-Type": contentType,
