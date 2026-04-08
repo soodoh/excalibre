@@ -9,8 +9,8 @@ const BUSY_INTERVAL_MS = 100; // 100ms when there was work
 
 let workerStarted = false;
 
-async function processNextJob(): Promise<boolean> {
-	// Find the oldest pending job that hasn't exceeded maxAttempts
+export function claimNextJob() {
+	// Find the oldest pending job that hasn't exceeded maxAttempts.
 	const job = db
 		.select()
 		.from(jobs)
@@ -20,20 +20,40 @@ async function processNextJob(): Promise<boolean> {
 		.get();
 
 	if (!job) {
+		return null;
+	}
+
+	const claimedJob = {
+		...job,
+		status: "running" as const,
+		attempts: job.attempts + 1,
+		startedAt: new Date(),
+	};
+
+	const result = db
+		.update(jobs)
+		.set({
+			status: claimedJob.status,
+			attempts: claimedJob.attempts,
+			startedAt: claimedJob.startedAt,
+		})
+		.where(and(eq(jobs.id, job.id), eq(jobs.status, "pending")))
+		.run();
+
+	if (result.changes === 0) {
+		return null;
+	}
+
+	return claimedJob;
+}
+
+async function processNextJob(): Promise<boolean> {
+	const job = claimNextJob();
+	if (!job) {
 		return false;
 	}
 
-	// Mark as running, increment attempts
-	db.update(jobs)
-		.set({
-			status: "running",
-			attempts: job.attempts + 1,
-			startedAt: new Date(),
-		})
-		.where(eq(jobs.id, job.id))
-		.run();
-
-	const isFinalAttempt = job.attempts + 1 >= job.maxAttempts;
+	const isFinalAttempt = job.attempts >= job.maxAttempts;
 
 	try {
 		// biome-ignore lint/complexity/noBannedTypes: Matches the current jobs table JSON typing.
