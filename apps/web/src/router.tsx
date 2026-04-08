@@ -6,11 +6,13 @@ import { routeTree } from "./routeTree.gen";
 
 export function getRouter(): AnyRouter {
 	if (import.meta.env.SSR) {
-		void import("./server/runtime-bootstrap").then(
-			({ ensureRuntimeStarted }) => {
+		void import("./server/runtime-bootstrap")
+			.then(({ ensureRuntimeStarted }) => {
 				void ensureRuntimeStarted();
-			},
-		);
+			})
+			.catch((error: unknown) => {
+				console.error("Failed to start runtime services", error);
+			});
 	}
 
 	const queryClient = getQueryClient();

@@ -1,12 +1,18 @@
-let runtimeStarted = false;
+let runtimeStartPromise: Promise<void> | null = null;
 
-export async function ensureRuntimeStarted(): Promise<void> {
-	if (runtimeStarted) {
-		return;
+export function ensureRuntimeStarted(): Promise<void> {
+	if (runtimeStartPromise) {
+		return runtimeStartPromise;
 	}
 
-	runtimeStarted = true;
+	runtimeStartPromise = import("./scheduler")
+		.then(({ ensureSchedulerStarted }) => {
+			ensureSchedulerStarted();
+		})
+		.catch((error: unknown) => {
+			runtimeStartPromise = null;
+			throw error;
+		});
 
-	const { ensureSchedulerStarted } = await import("./scheduler");
-	ensureSchedulerStarted();
+	return runtimeStartPromise;
 }

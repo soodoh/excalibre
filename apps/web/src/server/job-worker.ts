@@ -9,18 +9,32 @@ const BUSY_INTERVAL_MS = 100; // 100ms when there was work
 
 let workerStarted = false;
 
-export function claimNextJob() {
-	// Find the oldest pending job that hasn't exceeded maxAttempts.
-	const job = db
+function selectNextPendingJob() {
+	return db
 		.select()
 		.from(jobs)
 		.where(and(eq(jobs.status, "pending"), lt(jobs.attempts, jobs.maxAttempts)))
 		.orderBy(asc(jobs.priority), asc(jobs.createdAt))
 		.limit(1)
 		.get();
+}
+
+type ClaimResult =
+	| {
+			status: "claimed";
+			job: ReturnType<typeof selectNextPendingJob> & {
+				status: "running";
+				startedAt: Date;
+			};
+	  }
+	| { status: "contended" | "empty" };
+
+function claimNextJobResult(): ClaimResult {
+	// Find the oldest pending job that hasn't exceeded maxAttempts.
+	const job = selectNextPendingJob();
 
 	if (!job) {
-		return null;
+		return { status: "empty" };
 	}
 
 	const claimedJob = {
@@ -41,17 +55,29 @@ export function claimNextJob() {
 		.run();
 
 	if (result.changes === 0) {
-		return null;
+		return { status: "contended" };
 	}
 
-	return claimedJob;
+	return {
+		status: "claimed",
+		job: claimedJob,
+	};
 }
 
-async function processNextJob(): Promise<boolean> {
-	const job = claimNextJob();
-	if (!job) {
+export function claimNextJob() {
+	const result = claimNextJobResult();
+	return result.status === "claimed" ? result.job : null;
+}
+
+export async function processNextJob(): Promise<boolean> {
+	const result = claimNextJobResult();
+	if (result.status === "empty") {
 		return false;
 	}
+	if (result.status === "contended") {
+		return selectNextPendingJob() !== null;
+	}
+	const job = result.job;
 
 	const isFinalAttempt = job.attempts >= job.maxAttempts;
 
