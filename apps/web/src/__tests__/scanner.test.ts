@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { Readable } from "node:stream";
 import {
 	authors,
 	books,
@@ -191,7 +192,9 @@ describe("scanLibrary rescans", () => {
 			size: 123,
 			mtimeMs: 456,
 		} as fs.Stats);
-		vi.spyOn(fs, "readFileSync").mockReturnValue(Buffer.from("content"));
+		const createReadStreamSpy = vi
+			.spyOn(fs, "createReadStream")
+			.mockReturnValue(Readable.from(["content"]) as fs.ReadStream);
 
 		const { scanLibrary } = await import("src/server/scanner");
 
@@ -208,8 +211,14 @@ describe("scanLibrary rescans", () => {
 						seriesIndex: 2,
 					}),
 				}),
+				expect.objectContaining({
+					values: expect.objectContaining({
+						md5Hash: "9a0364b9e99bb480dd25e1f0284c8555",
+					}),
+				}),
 			]),
 		);
+		expect(createReadStreamSpy).toHaveBeenCalledWith(filePath);
 		expect(booksFindFirst).toHaveBeenCalled();
 		expect(deleteCalls).toEqual(
 			expect.arrayContaining([booksAuthors, booksTags]),
@@ -345,7 +354,9 @@ describe("scanLibrary rescans", () => {
 			size: 123,
 			mtimeMs: 456,
 		} as fs.Stats);
-		vi.spyOn(fs, "readFileSync").mockReturnValue(Buffer.from("content"));
+		vi.spyOn(fs, "createReadStream").mockReturnValue(
+			Readable.from(["content"]) as fs.ReadStream,
+		);
 
 		const { scanLibrary } = await import("src/server/scanner");
 

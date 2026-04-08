@@ -78,11 +78,15 @@ function walkDir(dir: string): string[] {
 	return results;
 }
 
-function computeMd5(filePath: string): string {
-	const hash = createHash("md5");
-	const content = fs.readFileSync(filePath);
-	hash.update(content);
-	return hash.digest("hex");
+async function computeMd5(filePath: string): Promise<string> {
+	return await new Promise((resolve, reject) => {
+		const hash = createHash("md5");
+		const stream = fs.createReadStream(filePath);
+
+		stream.on("data", (chunk) => hash.update(chunk));
+		stream.on("end", () => resolve(hash.digest("hex")));
+		stream.on("error", reject);
+	});
 }
 
 function computeFileHash(filePath: string): string {
@@ -237,7 +241,7 @@ async function processNewFile(
 	const { metadata, cover } = result;
 
 	const fileHash = computeFileHash(filePath);
-	const md5Hash = computeMd5(filePath);
+	const md5Hash = await computeMd5(filePath);
 	const stat = fs.statSync(filePath);
 
 	const seriesId = await resolveSeriesId(metadata.series, libraryId);
@@ -334,7 +338,7 @@ async function processUpdatedFile(
 	const result = await extractMetadata(filePath);
 	const { metadata, cover } = result;
 	const fileHash = computeFileHash(filePath);
-	const md5Hash = computeMd5(filePath);
+	const md5Hash = await computeMd5(filePath);
 	const stat = fs.statSync(filePath);
 	const bookId = existingFile.bookId;
 	const existingBook = await db.query.books.findFirst({
