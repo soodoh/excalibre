@@ -186,8 +186,8 @@ describe("scanLibrary rescans", () => {
 				name: "book.epub",
 				isDirectory: () => false,
 				isFile: () => true,
-			} as fs.Dirent,
-		]);
+			},
+		] as unknown as ReturnType<typeof fs.readdirSync>);
 		vi.spyOn(fs, "statSync").mockReturnValue({
 			size: 123,
 			mtimeMs: 456,
@@ -348,8 +348,8 @@ describe("scanLibrary rescans", () => {
 				name: "book.epub",
 				isDirectory: () => false,
 				isFile: () => true,
-			} as fs.Dirent,
-		]);
+			},
+		] as unknown as ReturnType<typeof fs.readdirSync>);
 		vi.spyOn(fs, "statSync").mockReturnValue({
 			size: 123,
 			mtimeMs: 456,

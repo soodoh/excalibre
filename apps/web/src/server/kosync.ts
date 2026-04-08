@@ -39,7 +39,7 @@ export async function verifyStatelessCredentials(
 	const passwordHash = userRecord?.credentialPassword ?? DUMMY_PASSWORD_HASH;
 	const isValid = await verifyPassword({ hash: passwordHash, password });
 
-	if (!isValid || !userRecord || !userRecord.credentialPassword) {
+	if (!isValid || !userRecord?.credentialPassword) {
 		return null;
 	}
 

@@ -6,7 +6,8 @@ export const koboTokens = sqliteTable("kobo_tokens", {
 	userId: text("user_id")
 		.notNull()
 		.references(() => user.id, { onDelete: "cascade" }),
-	token: text("token").notNull().unique(),
+	tokenHash: text("token_hash").notNull().unique(),
+	tokenPreview: text("token_preview").notNull(),
 	deviceName: text("device_name"),
 	createdAt: integer("created_at", { mode: "timestamp" })
 		.notNull()
@@ -18,7 +19,8 @@ export const opdsKeys = sqliteTable("opds_keys", {
 	userId: text("user_id")
 		.notNull()
 		.references(() => user.id, { onDelete: "cascade" }),
-	apiKey: text("api_key").notNull().unique(),
+	apiKeyHash: text("api_key_hash").notNull().unique(),
+	apiKeyPreview: text("api_key_preview").notNull(),
 	createdAt: integer("created_at", { mode: "timestamp" })
 		.notNull()
 		.$defaultFn(() => new Date()),

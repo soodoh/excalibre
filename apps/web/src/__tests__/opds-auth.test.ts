@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { hashPassword } from "better-auth/crypto";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
@@ -11,6 +12,7 @@ const getMock = vi.fn();
 const userFindFirst = vi.fn();
 const accountFindFirst = vi.fn();
 const opdsApiKeyFindFirst = vi.fn();
+const dbUpdate = vi.fn();
 const signInEmail = vi.fn();
 const fetchMock = vi.fn(() => Promise.reject(new Error("unexpected fetch")));
 const selectChain = {
@@ -28,6 +30,7 @@ vi.mock("drizzle-orm", () => ({
 vi.mock("src/db", () => ({
 	db: {
 		select: selectMock,
+		update: dbUpdate,
 		query: {
 			user: {
 				findFirst: userFindFirst,
@@ -135,7 +138,7 @@ describe("authenticateOpds", () => {
 	test("still authenticates OPDS api key requests", async () => {
 		opdsApiKeyFindFirst.mockResolvedValueOnce({
 			userId: "user-1",
-			apiKey: "opds-secret",
+			apiKeyHash: createHash("sha256").update("opds-secret").digest("hex"),
 		});
 
 		const { authenticateOpds } = await import("src/server/opds");
@@ -148,8 +151,42 @@ describe("authenticateOpds", () => {
 			userId: "user-1",
 			apiKey: "opds-secret",
 		});
+		expect(eqMock).toHaveBeenCalledWith(
+			expect.anything(),
+			createHash("sha256").update("opds-secret").digest("hex"),
+		);
 		expect(signInEmail).not.toHaveBeenCalled();
 		expect(accountFindFirst).not.toHaveBeenCalled();
+		expect(fetchMock).not.toHaveBeenCalled();
+	});
+
+	test("upgrades a legacy plaintext OPDS key to a hash after authenticating", async () => {
+		const setMock = vi.fn(() => ({
+			where: vi.fn(() => Promise.resolve()),
+		}));
+		dbUpdate.mockReturnValue({
+			set: setMock,
+		});
+		opdsApiKeyFindFirst.mockResolvedValueOnce(null).mockResolvedValueOnce({
+			id: 3,
+			userId: "user-1",
+		});
+
+		const { authenticateOpds } = await import("src/server/opds");
+		const request = new Request(
+			"https://example.com/api/opds?apikey=legacy-secret",
+		);
+
+		await expect(authenticateOpds(request)).resolves.toEqual({
+			mode: "opds",
+			userId: "user-1",
+			apiKey: "legacy-secret",
+		});
+		expect(opdsApiKeyFindFirst).toHaveBeenCalledTimes(2);
+		expect(setMock).toHaveBeenCalledWith({
+			apiKeyHash: createHash("sha256").update("legacy-secret").digest("hex"),
+			apiKeyPreview: "lega*********",
+		});
 		expect(fetchMock).not.toHaveBeenCalled();
 	});
 });

@@ -1,8 +1,8 @@
 // oxlint-disable typescript/no-unsafe-assignment, typescript/no-unsafe-call, typescript/no-unsafe-member-access, typescript/no-unsafe-argument
 import { createServerFn } from "@tanstack/react-start";
-import { and, desc, eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "src/db";
-import { annotations, readingProgress } from "src/db/schema";
+import { readingProgress } from "src/db/schema";
 import { assertUserCanAccessBook } from "src/server/access-control";
 import { requireAuth } from "src/server/middleware";
 import { normalizeReadingProgress } from "src/server/reading-utils";
@@ -90,81 +90,4 @@ export const saveReadingProgressFn = createServerFn({ method: "POST" })
 			})
 			.returning();
 		return inserted;
-	});
-
-export const getAnnotationsFn = createServerFn({ method: "GET" })
-	.inputValidator((raw: unknown) =>
-		z.object({ bookId: z.number().int() }).parse(raw),
-	)
-	.handler(async ({ data }) => {
-		const session = await requireAuth();
-		await assertUserCanAccessBook(
-			session.user.id,
-			data.bookId,
-			session.user.role,
-		);
-
-		return db
-			.select()
-			.from(annotations)
-			.where(
-				and(
-					eq(annotations.userId, session.user.id),
-					eq(annotations.bookId, data.bookId),
-				),
-			)
-			.orderBy(desc(annotations.createdAt));
-	});
-
-export const createAnnotationFn = createServerFn({ method: "POST" })
-	.inputValidator((raw: unknown) =>
-		z
-			.object({
-				bookId: z.number().int(),
-				type: z.enum(["highlight", "note", "bookmark"]),
-				position: z.string().optional(),
-				content: z.string().optional(),
-				note: z.string().optional(),
-				color: z.string().optional(),
-			})
-			.parse(raw),
-	)
-	.handler(async ({ data }) => {
-		const session = await requireAuth();
-		await assertUserCanAccessBook(
-			session.user.id,
-			data.bookId,
-			session.user.role,
-		);
-
-		const [inserted] = await db
-			.insert(annotations)
-			.values({
-				userId: session.user.id,
-				bookId: data.bookId,
-				type: data.type,
-				position: data.position,
-				content: data.content,
-				note: data.note,
-				color: data.color ?? "#facc15",
-			})
-			.returning();
-		return inserted;
-	});
-
-export const deleteAnnotationFn = createServerFn({ method: "POST" })
-	.inputValidator((raw: unknown) =>
-		z.object({ id: z.number().int() }).parse(raw),
-	)
-	.handler(async ({ data }) => {
-		const session = await requireAuth();
-
-		await db
-			.delete(annotations)
-			.where(
-				and(
-					eq(annotations.id, data.id),
-					eq(annotations.userId, session.user.id),
-				),
-			);
 	});

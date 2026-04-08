@@ -59,7 +59,5 @@ export const queryKeys = {
 	},
 	reading: {
 		progress: (bookId: number) => ["reading", "progress", bookId] as const,
-		annotations: (bookId: number) =>
-			["reading", "annotations", bookId] as const,
 	},
 };

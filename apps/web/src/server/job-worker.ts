@@ -19,12 +19,15 @@ function selectNextPendingJob() {
 		.get();
 }
 
+type PendingJob = NonNullable<ReturnType<typeof selectNextPendingJob>>;
+
 type ClaimResult =
 	| {
 			status: "claimed";
-			job: ReturnType<typeof selectNextPendingJob> & {
+			job: PendingJob & {
 				status: "running";
 				startedAt: Date;
+				attempts: number;
 			};
 	  }
 	| { status: "contended" | "empty" };
@@ -52,9 +55,17 @@ function claimNextJobResult(): ClaimResult {
 			startedAt: claimedJob.startedAt,
 		})
 		.where(and(eq(jobs.id, job.id), eq(jobs.status, "pending")))
-		.run();
+		.run() as unknown;
 
-	if (result.changes === 0) {
+	const changes =
+		typeof result === "object" &&
+		result !== null &&
+		"changes" in result &&
+		typeof result.changes === "number"
+			? result.changes
+			: 0;
+
+	if (changes === 0) {
 		return { status: "contended" };
 	}
 
@@ -71,11 +82,11 @@ export function claimNextJob() {
 
 export async function processNextJob(): Promise<boolean> {
 	const result = claimNextJobResult();
-	if (result.status === "empty") {
-		return false;
-	}
-	if (result.status === "contended") {
-		return selectNextPendingJob() !== null;
+	switch (result.status) {
+		case "empty":
+			return false;
+		case "contended":
+			return selectNextPendingJob() !== null;
 	}
 	const job = result.job;
 

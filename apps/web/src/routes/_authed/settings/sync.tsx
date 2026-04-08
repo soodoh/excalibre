@@ -12,7 +12,7 @@ import {
 	Trash2,
 } from "lucide-react";
 import type { JSX } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "src/components/ui/button";
 import {
@@ -117,7 +117,7 @@ function KOSyncSection(): JSX.Element {
 
 type KoboToken = {
 	id: number;
-	token: string;
+	tokenPreview: string;
 	deviceName: string | null;
 	createdAt: Date;
 };
@@ -125,9 +125,9 @@ type KoboToken = {
 type NewlyCreatedToken = {
 	id: number;
 	token: string;
+	tokenPreview: string;
 	deviceName: string | null;
 	createdAt: Date;
-	userId: string;
 };
 
 function AddKoboDeviceDialog({
@@ -314,6 +314,9 @@ function TokenList({
 						<p className="text-sm font-medium">
 							{t.deviceName ?? "Unnamed Device"}
 						</p>
+						<p className="font-mono text-xs text-muted-foreground">
+							{t.tokenPreview}
+						</p>
 						<p className="text-xs text-muted-foreground">
 							Added {formatDate(t.createdAt)}
 						</p>
@@ -399,22 +402,72 @@ function KoboSyncSection(): JSX.Element {
 
 type OpdsKey = {
 	id: number;
-	userId: string;
 	apiKey: string;
+	rawApiKey?: string;
 	createdAt: Date;
 };
 
+function NewOpdsKeyDialog({
+	apiKey,
+	onClose,
+}: {
+	apiKey: OpdsKey;
+	onClose: () => void;
+}): JSX.Element {
+	const opdsUrl = `${getOrigin()}/api/opds?apikey=${apiKey.rawApiKey ?? ""}`;
+
+	return (
+		<Dialog open onOpenChange={onClose}>
+			<DialogContent>
+				<DialogHeader>
+					<DialogTitle>OPDS API Key Ready</DialogTitle>
+					<DialogDescription>
+						This is the only time the full OPDS feed URL will be shown. Save it
+						in your reader app now.
+					</DialogDescription>
+				</DialogHeader>
+				<div className="space-y-2">
+					<Label className="text-xs text-muted-foreground">OPDS Feed URL</Label>
+					<div className="flex items-center gap-2">
+						<Input readOnly value={opdsUrl} className="font-mono text-xs" />
+						<Button
+							variant="outline"
+							size="icon"
+							onClick={() => void copyToClipboard(opdsUrl, "OPDS feed URL")}
+						>
+							<Copy className="size-4" />
+						</Button>
+					</div>
+				</div>
+				<DialogFooter>
+					<Button onClick={onClose}>Done</Button>
+				</DialogFooter>
+			</DialogContent>
+		</Dialog>
+	);
+}
+
 function OpdsSection(): JSX.Element {
 	const queryClient = useQueryClient();
+	const [revealedKey, setRevealedKey] = useState<OpdsKey | null>(null);
 
 	const { data: key, isLoading } = useQuery({
 		queryKey: ["sync", "opdsKey"],
 		queryFn: async () => getOpdsKeyFn(),
 	});
 
+	const opdsKey = key as OpdsKey | undefined;
+
+	useEffect(() => {
+		if (opdsKey?.rawApiKey) {
+			setRevealedKey(opdsKey);
+		}
+	}, [opdsKey]);
+
 	const regenerateMutation = useMutation({
 		mutationFn: async () => regenerateOpdsKeyFn(),
-		onSuccess: () => {
+		onSuccess: (nextKey) => {
+			setRevealedKey(nextKey as OpdsKey);
 			toast.success("OPDS API key regenerated");
 			void queryClient.invalidateQueries({ queryKey: ["sync", "opdsKey"] });
 		},
@@ -422,11 +475,6 @@ function OpdsSection(): JSX.Element {
 			toast.error(error.message ?? "Failed to regenerate key");
 		},
 	});
-
-	const opdsKey = key as OpdsKey | undefined;
-	const opdsUrl = opdsKey
-		? `${getOrigin()}/api/opds?apikey=${opdsKey.apiKey}`
-		: "";
 
 	return (
 		<Card>
@@ -441,9 +489,9 @@ function OpdsSection(): JSX.Element {
 			</CardHeader>
 			<CardContent className="space-y-4">
 				<p className="text-sm text-muted-foreground">
-					Use the OPDS feed URL below in any OPDS-compatible app such as Panels,
-					Kybook, or Moon+ Reader. Keep this URL private &mdash; it grants
-					access to your library.
+					Use the revealed OPDS feed URL in any OPDS-compatible app such as
+					Panels, Kybook, or Moon+ Reader. After creation, the stored key is
+					masked and you must regenerate it to reveal a new feed URL.
 				</p>
 
 				{isLoading ? (
@@ -452,18 +500,14 @@ function OpdsSection(): JSX.Element {
 					<div className="space-y-3">
 						<div className="space-y-1">
 							<Label className="text-xs text-muted-foreground">
-								OPDS Feed URL
+								Stored API Key
 							</Label>
 							<div className="flex items-center gap-2">
-								<Input readOnly value={opdsUrl} className="font-mono text-xs" />
-								<Button
-									variant="outline"
-									size="icon"
-									onClick={() => void copyToClipboard(opdsUrl, "OPDS feed URL")}
-									disabled={!opdsUrl}
-								>
-									<Copy className="size-4" />
-								</Button>
+								<Input
+									readOnly
+									value={opdsKey?.apiKey ?? ""}
+									className="font-mono text-xs"
+								/>
 							</div>
 						</div>
 						<Button
@@ -480,6 +524,13 @@ function OpdsSection(): JSX.Element {
 					</div>
 				)}
 			</CardContent>
+
+			{revealedKey?.rawApiKey && (
+				<NewOpdsKeyDialog
+					apiKey={revealedKey}
+					onClose={() => setRevealedKey(null)}
+				/>
+			)}
 		</Card>
 	);
 }

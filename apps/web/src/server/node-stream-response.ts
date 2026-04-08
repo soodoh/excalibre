@@ -25,5 +25,8 @@ export async function createStreamResponse(
 	init: ResponseInit,
 ): Promise<Response> {
 	await waitForStreamOpen(stream);
-	return new Response(Readable.toWeb(stream) as ReadableStream, init);
+	return new Response(
+		Readable.toWeb(stream) as unknown as ReadableStream,
+		init,
+	);
 }

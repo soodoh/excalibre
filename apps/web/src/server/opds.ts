@@ -11,6 +11,7 @@ import {
 	appendRequestAuthToUrl,
 	type RequestAuth,
 } from "src/server/request-auth";
+import { hashSecret, maskSecret } from "src/server/secret-tokens";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -42,9 +43,24 @@ export async function authenticateOpds(
 	// Check ?apikey= query param first
 	const apiKey = url.searchParams.get("apikey");
 	if (apiKey) {
-		const keyRecord = await db.query.opdsKeys.findFirst({
-			where: eq(opdsKeys.apiKey, apiKey),
+		const apiKeyHash = hashSecret(apiKey);
+		let keyRecord = await db.query.opdsKeys.findFirst({
+			where: eq(opdsKeys.apiKeyHash, apiKeyHash),
 		});
+		if (!keyRecord) {
+			keyRecord = await db.query.opdsKeys.findFirst({
+				where: eq(opdsKeys.apiKeyHash, apiKey),
+			});
+			if (keyRecord) {
+				await db
+					.update(opdsKeys)
+					.set({
+						apiKeyHash,
+						apiKeyPreview: maskSecret(apiKey),
+					})
+					.where(eq(opdsKeys.id, keyRecord.id));
+			}
+		}
 		if (keyRecord) {
 			return { mode: "opds", userId: keyRecord.userId, apiKey };
 		}
