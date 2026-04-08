@@ -21,6 +21,7 @@ import {
 	getFileFormat,
 	isSupportedFormat,
 } from "src/server/extractors";
+import { resolveLibraryScanPath } from "src/server/path-safety";
 
 const DATA_DIR = process.env.DATA_DIR ?? "data";
 const EXCALIBRE_DIR = process.env.EXCALIBRE_DIR ?? "data/excalibre";
@@ -77,11 +78,15 @@ function walkDir(dir: string): string[] {
 	return results;
 }
 
-function computeMd5(filePath: string): string {
-	const hash = createHash("md5");
-	const content = fs.readFileSync(filePath);
-	hash.update(content);
-	return hash.digest("hex");
+async function computeMd5(filePath: string): Promise<string> {
+	return await new Promise((resolve, reject) => {
+		const hash = createHash("md5");
+		const stream = fs.createReadStream(filePath);
+
+		stream.on("data", (chunk) => hash.update(chunk));
+		stream.on("end", () => resolve(hash.digest("hex")));
+		stream.on("error", reject);
+	});
 }
 
 function computeFileHash(filePath: string): string {
@@ -148,6 +153,86 @@ async function getOrCreateTag(name: string): Promise<number> {
 	return created.id;
 }
 
+async function resolveSeriesId(
+	name: string | null | undefined,
+	libraryId: number,
+): Promise<number | null> {
+	if (!name) {
+		return null;
+	}
+
+	return getOrCreateSeries(name, libraryId);
+}
+
+type LinkMutationExecutor = Pick<typeof db, "delete" | "insert">;
+
+function buildUniqueNames(
+	names: string[],
+	fallbackNames: string[] = [],
+): string[] {
+	const sourceNames = names.length > 0 ? names : fallbackNames;
+	const uniqueNames: string[] = [];
+	const seen = new Set<string>();
+
+	for (const name of sourceNames) {
+		if (seen.has(name)) {
+			continue;
+		}
+		seen.add(name);
+		uniqueNames.push(name);
+	}
+
+	return uniqueNames;
+}
+
+async function resolveAuthorIds(authorNames: string[]): Promise<number[]> {
+	const names = buildUniqueNames(authorNames, ["Unknown"]);
+	const authorIds: number[] = [];
+
+	for (const authorName of names) {
+		authorIds.push(await getOrCreateAuthor(authorName));
+	}
+
+	return authorIds;
+}
+
+async function resolveTagIds(tagNames: string[]): Promise<number[]> {
+	const names = buildUniqueNames(tagNames);
+	const tagIds: number[] = [];
+
+	for (const tagName of names) {
+		tagIds.push(await getOrCreateTag(tagName));
+	}
+
+	return tagIds;
+}
+
+async function replaceBookAuthors(
+	executor: LinkMutationExecutor,
+	bookId: number,
+	authorIds: number[],
+): Promise<void> {
+	await executor.delete(booksAuthors).where(eq(booksAuthors.bookId, bookId));
+
+	for (const authorId of authorIds) {
+		await executor
+			.insert(booksAuthors)
+			.values({ bookId, authorId, role: "author" });
+	}
+}
+
+async function replaceBookTags(
+	executor: LinkMutationExecutor,
+	bookId: number,
+	tagIds: number[],
+): Promise<void> {
+	await executor.delete(booksTags).where(eq(booksTags.bookId, bookId));
+
+	for (const tagId of tagIds) {
+		await executor.insert(booksTags).values({ bookId, tagId });
+	}
+}
+
 async function processNewFile(
 	filePath: string,
 	libraryId: number,
@@ -156,14 +241,10 @@ async function processNewFile(
 	const { metadata, cover } = result;
 
 	const fileHash = computeFileHash(filePath);
-	const md5Hash = computeMd5(filePath);
+	const md5Hash = await computeMd5(filePath);
 	const stat = fs.statSync(filePath);
 
-	// Resolve series
-	let seriesId: number | null = null;
-	if (metadata.series) {
-		seriesId = await getOrCreateSeries(metadata.series, libraryId);
-	}
+	const seriesId = await resolveSeriesId(metadata.series, libraryId);
 
 	// Insert book
 	const [book] = await db
@@ -225,7 +306,6 @@ async function processNewFile(
 			.run();
 	}
 
-	// Authors
 	const authorNames =
 		metadata.authors.length > 0 ? metadata.authors : ["Unknown"];
 	for (const authorName of authorNames) {
@@ -239,7 +319,6 @@ async function processNewFile(
 		}
 	}
 
-	// Tags
 	if (metadata.tags && metadata.tags.length > 0) {
 		for (const tagName of metadata.tags) {
 			const tagId = await getOrCreateTag(tagName);
@@ -259,24 +338,45 @@ async function processUpdatedFile(
 	const result = await extractMetadata(filePath);
 	const { metadata, cover } = result;
 	const fileHash = computeFileHash(filePath);
-	const md5Hash = computeMd5(filePath);
+	const md5Hash = await computeMd5(filePath);
 	const stat = fs.statSync(filePath);
 	const bookId = existingFile.bookId;
+	const existingBook = await db.query.books.findFirst({
+		where: eq(books.id, bookId),
+	});
+
+	if (!existingBook) {
+		throw new Error(`Book ${bookId} not found`);
+	}
+
+	const seriesId = await resolveSeriesId(
+		metadata.series,
+		existingBook.libraryId,
+	);
 
 	// Update book record
 	const updateValues: Partial<typeof books.$inferInsert> = {
 		title: metadata.title,
 		sortTitle: buildSortTitle(metadata.title),
+		slug: buildSlug(metadata.title),
 		description: metadata.description ?? null,
 		language: metadata.language ?? null,
 		publisher: metadata.publisher ?? null,
 		publishDate: metadata.publishDate ?? null,
 		pageCount: metadata.pageCount ?? null,
+		seriesId,
 		seriesIndex: metadata.seriesIndex ?? null,
 		updatedAt: new Date(),
 	};
 
-	await db.update(books).set(updateValues).where(eq(books.id, bookId));
+	const authorIds = await resolveAuthorIds(metadata.authors);
+	const tagIds = await resolveTagIds(metadata.tags ?? []);
+
+	await db.transaction(async (tx) => {
+		await tx.update(books).set(updateValues).where(eq(books.id, bookId));
+		await replaceBookAuthors(tx, bookId, authorIds);
+		await replaceBookTags(tx, bookId, tagIds);
+	});
 
 	// Update cover
 	if (cover) {
@@ -318,7 +418,7 @@ export async function scanLibrary(libraryId: number): Promise<ScanResult> {
 	const foundPaths = new Set<string>();
 
 	for (const scanPath of library.scanPaths) {
-		const fullScanPath = path.join(DATA_DIR, scanPath);
+		const fullScanPath = resolveLibraryScanPath(DATA_DIR, scanPath);
 		const files = walkDir(fullScanPath);
 
 		for (const filePath of files) {

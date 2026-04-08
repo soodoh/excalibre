@@ -9,31 +9,88 @@ const BUSY_INTERVAL_MS = 100; // 100ms when there was work
 
 let workerStarted = false;
 
-async function processNextJob(): Promise<boolean> {
-	// Find the oldest pending job that hasn't exceeded maxAttempts
-	const job = db
+function selectNextPendingJob() {
+	return db
 		.select()
 		.from(jobs)
 		.where(and(eq(jobs.status, "pending"), lt(jobs.attempts, jobs.maxAttempts)))
 		.orderBy(asc(jobs.priority), asc(jobs.createdAt))
 		.limit(1)
 		.get();
+}
+
+type PendingJob = NonNullable<ReturnType<typeof selectNextPendingJob>>;
+
+type ClaimResult =
+	| {
+			status: "claimed";
+			job: PendingJob & {
+				status: "running";
+				startedAt: Date;
+				attempts: number;
+			};
+	  }
+	| { status: "contended" | "empty" };
+
+function claimNextJobResult(): ClaimResult {
+	// Find the oldest pending job that hasn't exceeded maxAttempts.
+	const job = selectNextPendingJob();
 
 	if (!job) {
-		return false;
+		return { status: "empty" };
 	}
 
-	// Mark as running, increment attempts
-	db.update(jobs)
-		.set({
-			status: "running",
-			attempts: job.attempts + 1,
-			startedAt: new Date(),
-		})
-		.where(eq(jobs.id, job.id))
-		.run();
+	const claimedJob = {
+		...job,
+		status: "running" as const,
+		attempts: job.attempts + 1,
+		startedAt: new Date(),
+	};
 
-	const isFinalAttempt = job.attempts + 1 >= job.maxAttempts;
+	const result = db
+		.update(jobs)
+		.set({
+			status: claimedJob.status,
+			attempts: claimedJob.attempts,
+			startedAt: claimedJob.startedAt,
+		})
+		.where(and(eq(jobs.id, job.id), eq(jobs.status, "pending")))
+		.run() as unknown;
+
+	const changes =
+		typeof result === "object" &&
+		result !== null &&
+		"changes" in result &&
+		typeof result.changes === "number"
+			? result.changes
+			: 0;
+
+	if (changes === 0) {
+		return { status: "contended" };
+	}
+
+	return {
+		status: "claimed",
+		job: claimedJob,
+	};
+}
+
+export function claimNextJob() {
+	const result = claimNextJobResult();
+	return result.status === "claimed" ? result.job : null;
+}
+
+export async function processNextJob(): Promise<boolean> {
+	const result = claimNextJobResult();
+	switch (result.status) {
+		case "empty":
+			return false;
+		case "contended":
+			return selectNextPendingJob() !== null;
+	}
+	const job = result.job;
+
+	const isFinalAttempt = job.attempts >= job.maxAttempts;
 
 	try {
 		// biome-ignore lint/complexity/noBannedTypes: Matches the current jobs table JSON typing.

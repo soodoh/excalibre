@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { db } from "src/db";
 import type { authors, bookFiles, books, readingProgress } from "src/db/schema";
 import { koboTokens } from "src/db/schema";
+import { hashSecret, maskSecret } from "src/server/secret-tokens";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -75,10 +76,26 @@ type NewEntitlement = {
 export async function authenticateKobo(
 	token: string,
 ): Promise<{ userId: string } | null> {
-	const record = await db.query.koboTokens.findFirst({
-		where: eq(koboTokens.token, token),
-		columns: { userId: true },
+	const tokenHash = hashSecret(token);
+	let record = await db.query.koboTokens.findFirst({
+		where: eq(koboTokens.tokenHash, tokenHash),
+		columns: { id: true, userId: true, tokenPreview: true },
 	});
+	if (!record) {
+		record = await db.query.koboTokens.findFirst({
+			where: eq(koboTokens.tokenHash, token),
+			columns: { id: true, userId: true, tokenPreview: true },
+		});
+		if (record) {
+			await db
+				.update(koboTokens)
+				.set({
+					tokenHash,
+					tokenPreview: record.tokenPreview || maskSecret(token),
+				})
+				.where(eq(koboTokens.id, record.id));
+		}
+	}
 
 	if (!record) {
 		return null;

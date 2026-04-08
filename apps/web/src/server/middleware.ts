@@ -40,10 +40,6 @@ export async function requireAuth(): Promise<AuthSession> {
 	if (!session) {
 		throw new UnauthorizedError();
 	}
-	if (import.meta.env.SSR) {
-		const { ensureSchedulerStarted } = await import("./scheduler");
-		ensureSchedulerStarted();
-	}
 	return session;
 }
 

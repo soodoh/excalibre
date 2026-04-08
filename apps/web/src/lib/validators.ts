@@ -1,3 +1,4 @@
+import { isValidLibraryScanPath } from "src/server/path-safety";
 import { z } from "zod";
 
 export const createShelfSchema = z.object({
@@ -22,7 +23,14 @@ export const createLibrarySchema = z.object({
 	name: z.string().min(1, "Name is required"),
 	type: z.enum(["book", "comic", "manga"]),
 	scanPaths: z
-		.array(z.string().min(1))
+		.array(
+			z
+				.string()
+				.min(1)
+				.refine((value) => isValidLibraryScanPath(value), {
+					message: "Scan paths cannot escape DATA_DIR",
+				}),
+		)
 		.min(1, "At least one scan path is required"),
 	scanInterval: z.number().int().min(1).default(30),
 });

@@ -6,6 +6,7 @@ import { and, eq } from "drizzle-orm";
 import { db } from "src/db";
 import { koboTokens, opdsKeys } from "src/db/schema";
 import { requireAuth } from "src/server/middleware";
+import { hashSecret, maskSecret } from "src/server/secret-tokens";
 import { z } from "zod";
 
 // ── Kobo Tokens ───────────────────────────────────────────────────────────────
@@ -15,7 +16,12 @@ export const getKoboTokensFn = createServerFn({ method: "GET" }).handler(
 		const session = await requireAuth();
 		const tokens = await db.query.koboTokens.findMany({
 			where: eq(koboTokens.userId, session.user.id),
-			columns: { id: true, token: true, deviceName: true, createdAt: true },
+			columns: {
+				id: true,
+				tokenPreview: true,
+				deviceName: true,
+				createdAt: true,
+			},
 		});
 		return tokens;
 	},
@@ -28,15 +34,24 @@ export const createKoboTokenFn = createServerFn({ method: "POST" })
 	.handler(async ({ data }) => {
 		const session = await requireAuth();
 		const token = randomBytes(16).toString("hex");
+		const tokenHash = hashSecret(token);
+		const tokenPreview = maskSecret(token);
 		const [created] = await db
 			.insert(koboTokens)
 			.values({
 				userId: session.user.id,
-				token,
+				tokenHash,
+				tokenPreview,
 				deviceName: data.deviceName ?? null,
 			})
 			.returning();
-		return created;
+		return {
+			id: created.id,
+			token,
+			tokenPreview: created.tokenPreview,
+			deviceName: created.deviceName,
+			createdAt: created.createdAt,
+		};
 	});
 
 export const deleteKoboTokenFn = createServerFn({ method: "POST" })
@@ -59,20 +74,35 @@ export const getOpdsKeyFn = createServerFn({ method: "GET" }).handler(
 	async () => {
 		const session = await requireAuth();
 
-		let key = await db.query.opdsKeys.findFirst({
+		const key = await db.query.opdsKeys.findFirst({
 			where: eq(opdsKeys.userId, session.user.id),
 		});
 
 		if (!key) {
-			const apiKey = randomBytes(16).toString("hex");
+			const rawApiKey = randomBytes(16).toString("hex");
+			const apiKeyPreview = maskSecret(rawApiKey);
 			const [created] = await db
 				.insert(opdsKeys)
-				.values({ userId: session.user.id, apiKey })
+				.values({
+					userId: session.user.id,
+					apiKeyHash: hashSecret(rawApiKey),
+					apiKeyPreview,
+				})
 				.returning();
-			key = created;
+			return {
+				id: created.id,
+				apiKey: created.apiKeyPreview,
+				rawApiKey,
+				createdAt: created.createdAt,
+			};
 		}
 
-		return key;
+		return {
+			id: key.id,
+			apiKey: key.apiKeyPreview,
+			rawApiKey: undefined,
+			createdAt: key.createdAt,
+		};
 	},
 );
 
@@ -84,12 +114,22 @@ export const regenerateOpdsKeyFn = createServerFn({ method: "POST" }).handler(
 		await db.delete(opdsKeys).where(eq(opdsKeys.userId, session.user.id));
 
 		// Create a new one
-		const apiKey = randomBytes(16).toString("hex");
+		const rawApiKey = randomBytes(16).toString("hex");
+		const apiKeyPreview = maskSecret(rawApiKey);
 		const [created] = await db
 			.insert(opdsKeys)
-			.values({ userId: session.user.id, apiKey })
+			.values({
+				userId: session.user.id,
+				apiKeyHash: hashSecret(rawApiKey),
+				apiKeyPreview,
+			})
 			.returning();
 
-		return created;
+		return {
+			id: created.id,
+			apiKey: created.apiKeyPreview,
+			rawApiKey,
+			createdAt: created.createdAt,
+		};
 	},
 );

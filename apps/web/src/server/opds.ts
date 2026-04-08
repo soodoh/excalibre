@@ -1,15 +1,17 @@
 import { eq } from "drizzle-orm";
 import { db } from "src/db";
 import type { bookFiles, books } from "src/db/schema";
-import { opdsKeys, user } from "src/db/schema";
+import { opdsKeys } from "src/db/schema";
 import {
 	getAccessibleLibraries,
 	getAccessibleLibraryIds,
 } from "src/server/access-control";
+import { verifyStatelessCredentials } from "src/server/kosync";
 import {
 	appendRequestAuthToUrl,
 	type RequestAuth,
 } from "src/server/request-auth";
+import { hashSecret, maskSecret } from "src/server/secret-tokens";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -41,9 +43,24 @@ export async function authenticateOpds(
 	// Check ?apikey= query param first
 	const apiKey = url.searchParams.get("apikey");
 	if (apiKey) {
-		const keyRecord = await db.query.opdsKeys.findFirst({
-			where: eq(opdsKeys.apiKey, apiKey),
+		const apiKeyHash = hashSecret(apiKey);
+		let keyRecord = await db.query.opdsKeys.findFirst({
+			where: eq(opdsKeys.apiKeyHash, apiKeyHash),
 		});
+		if (!keyRecord) {
+			keyRecord = await db.query.opdsKeys.findFirst({
+				where: eq(opdsKeys.apiKeyHash, apiKey),
+			});
+			if (keyRecord) {
+				await db
+					.update(opdsKeys)
+					.set({
+						apiKeyHash,
+						apiKeyPreview: maskSecret(apiKey),
+					})
+					.where(eq(opdsKeys.id, keyRecord.id));
+			}
+		}
 		if (keyRecord) {
 			return { mode: "opds", userId: keyRecord.userId, apiKey };
 		}
@@ -73,31 +90,10 @@ export async function authenticateOpds(
 			return null;
 		}
 
-		const baseUrl = `${url.protocol}//${url.host}`;
-		try {
-			const response = await fetch(`${baseUrl}/api/auth/sign-in/email`, {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ email, password }),
-			});
-
-			if (!response.ok) {
-				return null;
-			}
-		} catch {
-			return null;
+		const userRecord = await verifyStatelessCredentials(email, password);
+		if (userRecord) {
+			return { mode: "opds", userId: userRecord.id };
 		}
-
-		const userRecord = await db.query.user.findFirst({
-			where: eq(user.email, email),
-			columns: { id: true },
-		});
-
-		if (!userRecord) {
-			return null;
-		}
-
-		return { mode: "opds", userId: userRecord.id };
 	}
 
 	return null;

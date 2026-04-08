@@ -1,5 +1,21 @@
 # Codebase Hardening And Cleanup Implementation Plan
 
+## Branch Status
+
+Tasks 1 through 7 in the hardening cleanup pass were implemented on
+`feat/codebase-hardening-cleanup` and merged locally.
+
+### Residual Audit Risk
+
+As of 2026-04-07, `bun audit` still reports 3 `h3` advisories. These are
+upstream-pinned rather than locally fixable in this codebase because
+`@tanstack/start-server-core@1.167.9` depends on the exact alias
+`npm:h3@2.0.1-rc.16`, which `@tanstack/react-start@1.167.16` currently
+resolves. Bun overrides cannot replace that exact alias from this branch.
+
+All direct dependency advisories that were fixable from this repository were
+updated or overridden in the hardening cleanup work.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Close the remaining security, robustness, and dead-code issues identified in the April 7, 2026 audit without broad architectural churn.

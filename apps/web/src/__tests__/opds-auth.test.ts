@@ -1,12 +1,43 @@
+import { createHash } from "node:crypto";
+import { hashPassword } from "better-auth/crypto";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
+const eqMock = vi.fn((field: unknown, value: unknown) => ({ field, value }));
+const andMock = vi.fn((...clauses: unknown[]) => ({ clauses }));
+const selectMock = vi.fn();
+const fromMock = vi.fn();
+const leftJoinMock = vi.fn();
+const whereMock = vi.fn();
+const getMock = vi.fn();
+const userFindFirst = vi.fn();
+const accountFindFirst = vi.fn();
 const opdsApiKeyFindFirst = vi.fn();
+const dbUpdate = vi.fn();
 const signInEmail = vi.fn();
 const fetchMock = vi.fn(() => Promise.reject(new Error("unexpected fetch")));
+const selectChain = {
+	from: fromMock,
+	leftJoin: leftJoinMock,
+	where: whereMock,
+	get: getMock,
+};
+
+vi.mock("drizzle-orm", () => ({
+	eq: eqMock,
+	and: andMock,
+}));
 
 vi.mock("src/db", () => ({
 	db: {
+		select: selectMock,
+		update: dbUpdate,
 		query: {
+			user: {
+				findFirst: userFindFirst,
+			},
+			account: {
+				findFirst: accountFindFirst,
+			},
 			opdsKeys: {
 				findFirst: opdsApiKeyFindFirst,
 			},
@@ -14,43 +45,41 @@ vi.mock("src/db", () => ({
 	},
 }));
 
-vi.mock("src/lib/auth", async () => {
-	const actual =
-		await vi.importActual<typeof import("src/lib/auth")>("src/lib/auth");
-
-	return {
-		...actual,
-		auth: {
-			...actual.auth,
-			api: {
-				...actual.auth.api,
-				signInEmail,
-			},
+vi.mock("src/lib/auth", () => ({
+	auth: {
+		api: {
+			signInEmail,
 		},
-	};
-});
+	},
+}));
 
 describe("authenticateOpds", () => {
 	beforeEach(() => {
 		vi.resetAllMocks();
 		vi.stubGlobal("fetch", fetchMock);
+		selectMock.mockReturnValue(selectChain);
+		fromMock.mockReturnValue(selectChain);
+		leftJoinMock.mockReturnValue(selectChain);
+		whereMock.mockReturnValue(selectChain);
 	});
 
-	test("uses Better Auth signInEmail for basic auth without calling fetch", async () => {
-		signInEmail.mockResolvedValueOnce({
-			redirect: false,
-			token: "session-token",
-			url: undefined,
-			user: {
-				id: "user-1",
-				email: "reader@example.com",
-			},
+	test("uses one stateless query for basic auth without calling fetch", async () => {
+		const passwordHash = await hashPassword("correct-horse");
+		getMock.mockResolvedValueOnce({
+			id: "user-1",
+			email: "reader@example.com",
+			name: "Reader",
+			image: null,
+			role: "reader",
+			createdAt: new Date("2026-04-07T00:00:00.000Z"),
+			updatedAt: new Date("2026-04-07T00:00:00.000Z"),
+			credentialPassword: passwordHash,
 		});
 
 		const { authenticateOpds } = await import("src/server/opds");
 		const request = new Request("https://example.com/api/opds", {
 			headers: {
-				Authorization: `Basic ${btoa("reader@example.com:correct-horse")}`,
+				Authorization: `Basic ${btoa("Reader@Example.com:correct-horse")}`,
 			},
 		});
 
@@ -58,19 +87,31 @@ describe("authenticateOpds", () => {
 			mode: "opds",
 			userId: "user-1",
 		});
-		expect(signInEmail).toHaveBeenCalledWith(
-			expect.objectContaining({
-				body: {
-					email: "reader@example.com",
-					password: "correct-horse",
-				},
-			}),
+		expect(eqMock).toHaveBeenCalledWith(
+			expect.anything(),
+			"reader@example.com",
 		);
+		expect(selectMock).toHaveBeenCalledTimes(1);
+		expect(leftJoinMock).toHaveBeenCalledTimes(1);
+		expect(andMock).toHaveBeenCalledTimes(1);
+		expect(signInEmail).not.toHaveBeenCalled();
+		expect(userFindFirst).not.toHaveBeenCalled();
+		expect(accountFindFirst).not.toHaveBeenCalled();
 		expect(fetchMock).not.toHaveBeenCalled();
 	});
 
 	test("returns null for invalid basic auth without calling fetch", async () => {
-		signInEmail.mockRejectedValueOnce(new Error("invalid credentials"));
+		const passwordHash = await hashPassword("correct-horse");
+		getMock.mockResolvedValueOnce({
+			id: "user-1",
+			email: "reader@example.com",
+			name: "Reader",
+			image: null,
+			role: "reader",
+			createdAt: new Date("2026-04-07T00:00:00.000Z"),
+			updatedAt: new Date("2026-04-07T00:00:00.000Z"),
+			credentialPassword: passwordHash,
+		});
 
 		const { authenticateOpds } = await import("src/server/opds");
 		const request = new Request("https://example.com/api/opds", {
@@ -80,21 +121,24 @@ describe("authenticateOpds", () => {
 		});
 
 		await expect(authenticateOpds(request)).resolves.toBeNull();
-		expect(signInEmail).toHaveBeenCalledWith(
-			expect.objectContaining({
-				body: {
-					email: "reader@example.com",
-					password: "wrong-password",
-				},
-			}),
+		expect(eqMock).toHaveBeenCalledWith(
+			expect.anything(),
+			"reader@example.com",
 		);
+		expect(eqMock).toHaveBeenCalledWith(expect.anything(), "credential");
+		expect(selectMock).toHaveBeenCalledTimes(1);
+		expect(leftJoinMock).toHaveBeenCalledTimes(1);
+		expect(andMock).toHaveBeenCalledTimes(1);
+		expect(signInEmail).not.toHaveBeenCalled();
+		expect(userFindFirst).not.toHaveBeenCalled();
+		expect(accountFindFirst).not.toHaveBeenCalled();
 		expect(fetchMock).not.toHaveBeenCalled();
 	});
 
 	test("still authenticates OPDS api key requests", async () => {
 		opdsApiKeyFindFirst.mockResolvedValueOnce({
 			userId: "user-1",
-			apiKey: "opds-secret",
+			apiKeyHash: createHash("sha256").update("opds-secret").digest("hex"),
 		});
 
 		const { authenticateOpds } = await import("src/server/opds");
@@ -107,7 +151,42 @@ describe("authenticateOpds", () => {
 			userId: "user-1",
 			apiKey: "opds-secret",
 		});
+		expect(eqMock).toHaveBeenCalledWith(
+			expect.anything(),
+			createHash("sha256").update("opds-secret").digest("hex"),
+		);
 		expect(signInEmail).not.toHaveBeenCalled();
+		expect(accountFindFirst).not.toHaveBeenCalled();
+		expect(fetchMock).not.toHaveBeenCalled();
+	});
+
+	test("upgrades a legacy plaintext OPDS key to a hash after authenticating", async () => {
+		const setMock = vi.fn(() => ({
+			where: vi.fn(() => Promise.resolve()),
+		}));
+		dbUpdate.mockReturnValue({
+			set: setMock,
+		});
+		opdsApiKeyFindFirst.mockResolvedValueOnce(null).mockResolvedValueOnce({
+			id: 3,
+			userId: "user-1",
+		});
+
+		const { authenticateOpds } = await import("src/server/opds");
+		const request = new Request(
+			"https://example.com/api/opds?apikey=legacy-secret",
+		);
+
+		await expect(authenticateOpds(request)).resolves.toEqual({
+			mode: "opds",
+			userId: "user-1",
+			apiKey: "legacy-secret",
+		});
+		expect(opdsApiKeyFindFirst).toHaveBeenCalledTimes(2);
+		expect(setMock).toHaveBeenCalledWith({
+			apiKeyHash: createHash("sha256").update("legacy-secret").digest("hex"),
+			apiKeyPreview: "lega*********",
+		});
 		expect(fetchMock).not.toHaveBeenCalled();
 	});
 });
