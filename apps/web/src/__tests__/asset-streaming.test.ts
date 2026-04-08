@@ -39,12 +39,12 @@ describe("asset streaming routes", () => {
 		});
 		const stream = new PassThrough();
 		createReadStream.mockImplementation(() => {
-			queueMicrotask(() => {
+			setTimeout(() => {
 				stream.emit("open");
 				setTimeout(() => {
 					stream.end("book-content");
 				}, 0);
-			});
+			}, 0);
 			return stream;
 		});
 
@@ -69,12 +69,12 @@ describe("asset streaming routes", () => {
 		});
 		const stream = new PassThrough();
 		createReadStream.mockImplementation(() => {
-			queueMicrotask(() => {
+			setTimeout(() => {
 				stream.emit("open");
 				setTimeout(() => {
 					stream.end("cover-content");
 				}, 0);
-			});
+			}, 0);
 			return stream;
 		});
 
@@ -100,9 +100,9 @@ describe("asset streaming routes", () => {
 		});
 		const stream = new PassThrough();
 		createReadStream.mockImplementation(() => {
-			queueMicrotask(() => {
+			setTimeout(() => {
 				stream.emit("error", new Error("open failed"));
-			});
+			}, 0);
 			return stream;
 		});
 
@@ -125,12 +125,12 @@ describe("asset streaming routes", () => {
 		const stream = new PassThrough();
 		const destroySpy = vi.spyOn(stream, "destroy");
 		createReadStream.mockImplementation(() => {
-			queueMicrotask(() => {
+			setTimeout(() => {
 				stream.emit("open");
 				setTimeout(() => {
 					stream.write("cover");
 				}, 0);
-			});
+			}, 0);
 			return stream;
 		});
 
