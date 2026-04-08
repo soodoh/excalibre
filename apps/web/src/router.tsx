@@ -3,11 +3,14 @@ import { createRouter } from "@tanstack/react-router";
 import { setupRouterSsrQueryIntegration } from "@tanstack/react-router-ssr-query";
 import { getQueryClient } from "./lib/query-client";
 import { routeTree } from "./routeTree.gen";
-import { ensureRuntimeStarted } from "./server/runtime-bootstrap";
 
 export function getRouter(): AnyRouter {
 	if (import.meta.env.SSR) {
-		void ensureRuntimeStarted();
+		void import("./server/runtime-bootstrap").then(
+			({ ensureRuntimeStarted }) => {
+				void ensureRuntimeStarted();
+			},
+		);
 	}
 
 	const queryClient = getQueryClient();
