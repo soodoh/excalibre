@@ -1,7 +1,7 @@
 pre-commit:
   jobs:
     - name: biome
-      glob: "*.{js,jsx,ts,tsx,css,json,md,mdx,yaml,yml}"
+      glob: "*.{js,jsx,ts,tsx,css,json}"
       run: bunx biome check --fix {staged_files}
       stage_fixed: true
 
