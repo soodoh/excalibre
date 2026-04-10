@@ -1,4 +1,3 @@
-import { playwright } from "@vitest/browser-playwright";
 import { defineWorkspace } from "vitest/config";
 
 export default defineWorkspace([
@@ -17,9 +16,8 @@ export default defineWorkspace([
 			include: ["src/**/*.browser.test.tsx"],
 			browser: {
 				enabled: true,
-				provider: playwright({
-					launchOptions: { headless: true },
-				}),
+				headless: true,
+				provider: "playwright",
 				instances: [{ browser: "chromium" }],
 			},
 		},
