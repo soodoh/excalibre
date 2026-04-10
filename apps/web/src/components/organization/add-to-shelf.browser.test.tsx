@@ -187,4 +187,208 @@ describe("AddToShelf", () => {
 		await expect.element(page.getByText("My Manual")).toBeVisible();
 		await expect.element(page.getByText("Smart Shelf")).not.toBeInTheDocument();
 	});
+
+	test("clicking shelf adds book when not in shelf", async () => {
+		mocks.getShelvesFn.mockResolvedValue([
+			{ id: 1, name: "Favs", type: "manual" },
+		]);
+		mocks.getCollectionsFn.mockResolvedValue([]);
+		mocks.getReadingListsFn.mockResolvedValue([]);
+		mocks.getBookMembershipFn.mockResolvedValue({
+			shelfIds: [],
+			collectionIds: [],
+			readingListIds: [],
+		});
+		mocks.addBookToShelfFn.mockResolvedValue(undefined);
+		const screen = await render(
+			<AddToShelf
+				bookId={1}
+				trigger={<button type="button">Add to...</button>}
+			/>,
+			{ wrapper: createWrapper() },
+		);
+		await screen.getByRole("button", { name: "Add to..." }).click();
+		await page.getByText("Favs").click();
+		await new Promise((r) => setTimeout(r, 100));
+	});
+
+	test("clicking shelf removes book when already in shelf", async () => {
+		mocks.getShelvesFn.mockResolvedValue([
+			{ id: 1, name: "Favs", type: "manual" },
+		]);
+		mocks.getCollectionsFn.mockResolvedValue([]);
+		mocks.getReadingListsFn.mockResolvedValue([]);
+		mocks.getBookMembershipFn.mockResolvedValue({
+			shelfIds: [1],
+			collectionIds: [],
+			readingListIds: [],
+		});
+		mocks.removeBookFromShelfFn.mockResolvedValue(undefined);
+		const screen = await render(
+			<AddToShelf
+				bookId={1}
+				trigger={<button type="button">Add to...</button>}
+			/>,
+			{ wrapper: createWrapper() },
+		);
+		await screen.getByRole("button", { name: "Add to..." }).click();
+		await page.getByText("Favs").click();
+		await new Promise((r) => setTimeout(r, 100));
+	});
+
+	test("shelf toggle shows error toast on failure", async () => {
+		mocks.getShelvesFn.mockResolvedValue([
+			{ id: 1, name: "Favs", type: "manual" },
+		]);
+		mocks.getCollectionsFn.mockResolvedValue([]);
+		mocks.getReadingListsFn.mockResolvedValue([]);
+		mocks.getBookMembershipFn.mockResolvedValue({
+			shelfIds: [],
+			collectionIds: [],
+			readingListIds: [],
+		});
+		mocks.addBookToShelfFn.mockRejectedValue(new Error("boom"));
+		const screen = await render(
+			<AddToShelf
+				bookId={1}
+				trigger={<button type="button">Add to...</button>}
+			/>,
+			{ wrapper: createWrapper() },
+		);
+		await screen.getByRole("button", { name: "Add to..." }).click();
+		await page.getByText("Favs").click();
+		await new Promise((r) => setTimeout(r, 100));
+	});
+
+	test("clicking collection adds book", async () => {
+		mocks.getShelvesFn.mockResolvedValue([]);
+		mocks.getCollectionsFn.mockResolvedValue([{ id: 1, name: "Sci-Fi" }]);
+		mocks.getReadingListsFn.mockResolvedValue([]);
+		mocks.getBookMembershipFn.mockResolvedValue({
+			shelfIds: [],
+			collectionIds: [],
+			readingListIds: [],
+		});
+		mocks.addBookToCollectionFn.mockResolvedValue(undefined);
+		const screen = await render(
+			<AddToShelf
+				bookId={1}
+				trigger={<button type="button">Add to...</button>}
+			/>,
+			{ wrapper: createWrapper() },
+		);
+		await screen.getByRole("button", { name: "Add to..." }).click();
+		await page.getByText("Sci-Fi").click();
+		await new Promise((r) => setTimeout(r, 100));
+	});
+
+	test("clicking collection removes book when already in", async () => {
+		mocks.getShelvesFn.mockResolvedValue([]);
+		mocks.getCollectionsFn.mockResolvedValue([{ id: 1, name: "Sci-Fi" }]);
+		mocks.getReadingListsFn.mockResolvedValue([]);
+		mocks.getBookMembershipFn.mockResolvedValue({
+			shelfIds: [],
+			collectionIds: [1],
+			readingListIds: [],
+		});
+		mocks.removeBookFromCollectionFn.mockResolvedValue(undefined);
+		const screen = await render(
+			<AddToShelf
+				bookId={1}
+				trigger={<button type="button">Add to...</button>}
+			/>,
+			{ wrapper: createWrapper() },
+		);
+		await screen.getByRole("button", { name: "Add to..." }).click();
+		await page.getByText("Sci-Fi").click();
+		await new Promise((r) => setTimeout(r, 100));
+	});
+
+	test("collection toggle error shows toast", async () => {
+		mocks.getShelvesFn.mockResolvedValue([]);
+		mocks.getCollectionsFn.mockResolvedValue([{ id: 1, name: "Sci-Fi" }]);
+		mocks.getReadingListsFn.mockResolvedValue([]);
+		mocks.getBookMembershipFn.mockResolvedValue({
+			shelfIds: [],
+			collectionIds: [],
+			readingListIds: [],
+		});
+		mocks.addBookToCollectionFn.mockRejectedValue(new Error("boom"));
+		const screen = await render(
+			<AddToShelf
+				bookId={1}
+				trigger={<button type="button">Add to...</button>}
+			/>,
+			{ wrapper: createWrapper() },
+		);
+		await screen.getByRole("button", { name: "Add to..." }).click();
+		await page.getByText("Sci-Fi").click();
+		await new Promise((r) => setTimeout(r, 100));
+	});
+
+	test("clicking reading list adds book", async () => {
+		mocks.getShelvesFn.mockResolvedValue([]);
+		mocks.getCollectionsFn.mockResolvedValue([]);
+		mocks.getReadingListsFn.mockResolvedValue([{ id: 1, name: "Wishlist" }]);
+		mocks.getBookMembershipFn.mockResolvedValue({
+			shelfIds: [],
+			collectionIds: [],
+			readingListIds: [],
+		});
+		mocks.addBookToReadingListFn.mockResolvedValue(undefined);
+		const screen = await render(
+			<AddToShelf
+				bookId={1}
+				trigger={<button type="button">Add to...</button>}
+			/>,
+			{ wrapper: createWrapper() },
+		);
+		await screen.getByRole("button", { name: "Add to..." }).click();
+		await page.getByText("Wishlist").click();
+		await new Promise((r) => setTimeout(r, 100));
+	});
+
+	test("clicking reading list removes book when already in", async () => {
+		mocks.getShelvesFn.mockResolvedValue([]);
+		mocks.getCollectionsFn.mockResolvedValue([]);
+		mocks.getReadingListsFn.mockResolvedValue([{ id: 1, name: "Wishlist" }]);
+		mocks.getBookMembershipFn.mockResolvedValue({
+			shelfIds: [],
+			collectionIds: [],
+			readingListIds: [1],
+		});
+		mocks.removeBookFromReadingListFn.mockResolvedValue(undefined);
+		const screen = await render(
+			<AddToShelf
+				bookId={1}
+				trigger={<button type="button">Add to...</button>}
+			/>,
+			{ wrapper: createWrapper() },
+		);
+		await screen.getByRole("button", { name: "Add to..." }).click();
+		await page.getByText("Wishlist").click();
+		await new Promise((r) => setTimeout(r, 100));
+	});
+
+	test("reading list toggle error shows toast", async () => {
+		mocks.getShelvesFn.mockResolvedValue([]);
+		mocks.getCollectionsFn.mockResolvedValue([]);
+		mocks.getReadingListsFn.mockResolvedValue([{ id: 1, name: "Wishlist" }]);
+		mocks.getBookMembershipFn.mockResolvedValue({
+			shelfIds: [],
+			collectionIds: [],
+			readingListIds: [],
+		});
+		mocks.addBookToReadingListFn.mockRejectedValue(new Error("boom"));
+		const screen = await render(
+			<AddToShelf
+				bookId={1}
+				trigger={<button type="button">Add to...</button>}
+			/>,
+			{ wrapper: createWrapper() },
+		);
+		await screen.getByRole("button", { name: "Add to..." }).click();
+		await page.getByText("Wishlist").click();
+		await new Promise((r) => setTimeout(r, 100));
+	});
 });

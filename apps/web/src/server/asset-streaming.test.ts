@@ -118,6 +118,108 @@ describe("asset streaming routes", () => {
 		await expect(response.text()).resolves.toBe("Internal Server Error");
 	});
 
+	test("cover returns 400 for invalid book id", async () => {
+		const { handleCoverAssetRequest } = await import(
+			"src/routes/api/covers/$bookId"
+		);
+		const response = await handleCoverAssetRequest({
+			request: new Request("https://example.com/api/covers/abc"),
+			params: { bookId: "abc" },
+		});
+		expect(response.status).toBe(400);
+		await expect(response.text()).resolves.toBe("Invalid book ID");
+	});
+
+	test("cover returns 404 when coverPath missing", async () => {
+		assertUserCanAccessBook.mockResolvedValue({ coverPath: null });
+		const { handleCoverAssetRequest } = await import(
+			"src/routes/api/covers/$bookId"
+		);
+		const response = await handleCoverAssetRequest({
+			request: new Request("https://example.com/api/covers/12"),
+			params: { bookId: "12" },
+		});
+		expect(response.status).toBe(404);
+	});
+
+	test("cover returns 404 when file does not exist", async () => {
+		assertUserCanAccessBook.mockResolvedValue({
+			coverPath: "/tmp/missing.jpg",
+		});
+		existsSync.mockReturnValue(false);
+		const { handleCoverAssetRequest } = await import(
+			"src/routes/api/covers/$bookId"
+		);
+		const response = await handleCoverAssetRequest({
+			request: new Request("https://example.com/api/covers/12"),
+			params: { bookId: "12" },
+		});
+		expect(response.status).toBe(404);
+	});
+
+	test("cover returns 500 for unexpected error", async () => {
+		assertUserCanAccessBook.mockRejectedValue(new Error("boom"));
+		const { handleCoverAssetRequest } = await import(
+			"src/routes/api/covers/$bookId"
+		);
+		const response = await handleCoverAssetRequest({
+			request: new Request("https://example.com/api/covers/12"),
+			params: { bookId: "12" },
+		});
+		expect(response.status).toBe(500);
+	});
+
+	test("cover uses jpeg fallback for unknown extension", async () => {
+		assertUserCanAccessBook.mockResolvedValue({
+			coverPath: "/tmp/cover.xyz",
+		});
+		const stream = new PassThrough();
+		createReadStream.mockImplementation(() => {
+			setTimeout(() => {
+				stream.emit("open");
+				setTimeout(() => {
+					stream.end("data");
+				}, 0);
+			}, 0);
+			return stream;
+		});
+		const { handleCoverAssetRequest } = await import(
+			"src/routes/api/covers/$bookId"
+		);
+		const response = await handleCoverAssetRequest({
+			request: new Request("https://example.com/api/covers/12"),
+			params: { bookId: "12" },
+		});
+		expect(response.headers.get("Content-Type")).toBe("image/jpeg");
+	});
+
+	test("book download returns 400 for invalid file id", async () => {
+		const { handleBookAssetRequest } = await import(
+			"src/routes/api/books/$fileId"
+		);
+		const response = await handleBookAssetRequest({
+			request: new Request("https://example.com/api/books/abc"),
+			params: { fileId: "abc" },
+		});
+		expect(response.status).toBe(400);
+	});
+
+	test("book download returns 404 when file does not exist", async () => {
+		assertUserCanAccessBookFile.mockResolvedValue({
+			filePath: "/tmp/missing.epub",
+			format: "epub",
+		});
+		existsSync.mockReturnValue(false);
+		const { handleBookAssetRequest } = await import(
+			"src/routes/api/books/$fileId"
+		);
+		const response = await handleBookAssetRequest({
+			request: new Request("https://example.com/api/books/12"),
+			params: { fileId: "12" },
+		});
+		expect(response.status).toBe(404);
+	});
+
 	test("cover streams destroy the underlying node stream when cancelled", async () => {
 		assertUserCanAccessBook.mockResolvedValue({
 			coverPath: "/tmp/cover.webp",

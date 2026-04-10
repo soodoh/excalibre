@@ -3,10 +3,30 @@ import { render } from "vitest-browser-react";
 
 const mocks = vi.hoisted(() => {
 	let captured: unknown = null;
+	const mutations: Array<{
+		mutationFn: (...args: unknown[]) => unknown;
+		onSuccess?: (...args: unknown[]) => unknown;
+		onError?: (error: Error) => unknown;
+	}> = [];
 	return {
 		useQuery: vi.fn(),
-		useMutation: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
-		useQueryClient: vi.fn(() => ({ invalidateQueries: vi.fn() })),
+		useMutation: vi.fn(
+			(opts: {
+				mutationFn: (...args: unknown[]) => unknown;
+				onSuccess?: (...args: unknown[]) => unknown;
+				onError?: (error: Error) => unknown;
+			}) => {
+				mutations.push(opts);
+				return { mutate: vi.fn(), isPending: false };
+			},
+		),
+		useQueryClient: vi.fn(() => ({
+			invalidateQueries: vi.fn().mockResolvedValue(undefined),
+		})),
+		mutations,
+		resetMutations: () => {
+			mutations.length = 0;
+		},
 		setComponent: (c: unknown) => {
 			captured = c;
 		},
@@ -110,5 +130,96 @@ describe("ScanningSettingsPage", () => {
 		await expect
 			.element(screen.getByRole("button", { name: /Scan All Libraries/i }))
 			.toBeVisible();
+	});
+
+	test("renders library with lastScannedAt times", async () => {
+		const now = new Date();
+		mocks.useQuery.mockReturnValue({
+			data: [
+				{
+					id: 1,
+					name: "Recent",
+					type: "ebook",
+					scanInterval: 60,
+					lastScannedAt: new Date(now.getTime() - 30 * 1000),
+				},
+				{
+					id: 2,
+					name: "Minutes",
+					type: "ebook",
+					scanInterval: 60,
+					lastScannedAt: new Date(now.getTime() - 5 * 60 * 1000),
+				},
+				{
+					id: 3,
+					name: "Hours",
+					type: "ebook",
+					scanInterval: 60,
+					lastScannedAt: new Date(now.getTime() - 3 * 60 * 60 * 1000),
+				},
+				{
+					id: 4,
+					name: "Days",
+					type: "ebook",
+					scanInterval: 60,
+					lastScannedAt: new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000),
+				},
+				{
+					id: 5,
+					name: "OneMin",
+					type: "ebook",
+					scanInterval: 60,
+					lastScannedAt: new Date(now.getTime() - 60 * 1000),
+				},
+				{
+					id: 6,
+					name: "OneHour",
+					type: "ebook",
+					scanInterval: 60,
+					lastScannedAt: new Date(now.getTime() - 60 * 60 * 1000),
+				},
+				{
+					id: 7,
+					name: "OneDay",
+					type: "ebook",
+					scanInterval: 60,
+					lastScannedAt: new Date(now.getTime() - 24 * 60 * 60 * 1000),
+				},
+			],
+			isLoading: false,
+		});
+		const Page = mocks.getComponent() as ComponentType;
+		await render(<Page />);
+	});
+
+	test("mutation onSuccess and onError handlers", async () => {
+		mocks.resetMutations();
+		mocks.useQuery.mockReturnValue({
+			data: [
+				{
+					id: 1,
+					name: "Lib",
+					type: "ebook",
+					scanInterval: 60,
+					lastScannedAt: null,
+				},
+			],
+			isLoading: false,
+		});
+		const Page = mocks.getComponent() as ComponentType;
+		await render(<Page />);
+		// ScanningSettingsPage's scanAllMutation is registered first, then the
+		// LibraryRow's scanMutation during child render.
+		const scanAllMut = mocks.mutations[0];
+		await scanAllMut?.onSuccess?.({ added: 1, updated: 2, missing: 3 });
+		scanAllMut?.onError?.(new Error("all-fail"));
+		scanAllMut?.onError?.(new Error(""));
+		await scanAllMut?.mutationFn?.();
+
+		const rowMut = mocks.mutations[1];
+		await rowMut?.onSuccess?.({ added: 5, updated: 6, missing: 7 });
+		rowMut?.onError?.(new Error("row-fail"));
+		rowMut?.onError?.(new Error(""));
+		await rowMut?.mutationFn?.();
 	});
 });

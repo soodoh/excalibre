@@ -114,4 +114,64 @@ describe("SeriesDetailPage", () => {
 		const screen = await render(<SeriesPage />);
 		await expect.element(screen.getByText("No books found")).toBeVisible();
 	});
+
+	test("shows loading skeleton", async () => {
+		mocks.useQuery.mockReturnValue({ data: undefined, isLoading: true });
+		const SeriesPage = mocks.getComponent() as ComponentType;
+		await render(<SeriesPage />);
+	});
+
+	test("renders singular book count", async () => {
+		mocks.useQuery.mockReturnValue({
+			data: {
+				id: 1,
+				name: "One Book",
+				books: [{ id: 1, title: "Only", coverPath: null, seriesIndex: 1 }],
+			},
+			isLoading: false,
+		});
+		const SeriesPage = mocks.getComponent() as ComponentType;
+		const screen = await render(<SeriesPage />);
+		await expect.element(screen.getByText("1 book")).toBeVisible();
+	});
+
+	test("renders book with null seriesIndex shows ?", async () => {
+		mocks.useQuery.mockReturnValue({
+			data: {
+				id: 1,
+				name: "Series",
+				books: [
+					{ id: 1, title: "Unnumbered", coverPath: null, seriesIndex: null },
+				],
+			},
+			isLoading: false,
+		});
+		const SeriesPage = mocks.getComponent() as ComponentType;
+		const screen = await render(<SeriesPage />);
+		await expect.element(screen.getByText("?")).toBeVisible();
+	});
+
+	test("renders cover image when coverPath provided", async () => {
+		mocks.useQuery.mockReturnValue({
+			data: {
+				id: 1,
+				name: "Series",
+				books: [{ id: 1, title: "Cover", coverPath: "/c.jpg", seriesIndex: 1 }],
+			},
+			isLoading: false,
+		});
+		const SeriesPage = mocks.getComponent() as ComponentType;
+		await render(<SeriesPage />);
+	});
+
+	test("back button calls router.history.back", async () => {
+		mocks.useQuery.mockReturnValue({
+			data: { id: 1, name: "S", books: [] },
+			isLoading: false,
+		});
+		const SeriesPage = mocks.getComponent() as ComponentType;
+		const screen = await render(<SeriesPage />);
+		await screen.getByRole("button", { name: /Back/i }).click();
+		expect(mocks.router.history.back).toHaveBeenCalled();
+	});
 });

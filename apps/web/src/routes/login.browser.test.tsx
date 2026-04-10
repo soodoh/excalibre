@@ -95,4 +95,51 @@ describe("LoginPage", () => {
 			.element(screen.getByRole("link", { name: "Register" }))
 			.toBeVisible();
 	});
+
+	test("successful sign-in navigates to home", async () => {
+		mocks.signIn.email.mockResolvedValue({ error: null });
+		const LoginPage = mocks.getComponent() as ComponentType;
+		const screen = await render(<LoginPage />);
+		await screen.getByLabelText("Email").fill("a@b.com");
+		await screen.getByLabelText("Password").fill("password123");
+		await screen.getByRole("button", { name: "Sign In" }).click();
+		// Wait for async handler
+		await new Promise((r) => setTimeout(r, 50));
+		expect(mocks.navigate).toHaveBeenCalledWith({ to: "/" });
+	});
+
+	test("sign-in error shows toast", async () => {
+		mocks.signIn.email.mockResolvedValue({
+			error: { message: "Invalid credentials" },
+		});
+		const LoginPage = mocks.getComponent() as ComponentType;
+		const screen = await render(<LoginPage />);
+		await screen.getByLabelText("Email").fill("a@b.com");
+		await screen.getByLabelText("Password").fill("wrong");
+		await screen.getByRole("button", { name: "Sign In" }).click();
+		await new Promise((r) => setTimeout(r, 50));
+		expect(mocks.toastError).toHaveBeenCalled();
+	});
+
+	test("sign-in error without message uses default", async () => {
+		mocks.signIn.email.mockResolvedValue({ error: {} });
+		const LoginPage = mocks.getComponent() as ComponentType;
+		const screen = await render(<LoginPage />);
+		await screen.getByLabelText("Email").fill("a@b.com");
+		await screen.getByLabelText("Password").fill("wrong");
+		await screen.getByRole("button", { name: "Sign In" }).click();
+		await new Promise((r) => setTimeout(r, 50));
+		expect(mocks.toastError).toHaveBeenCalled();
+	});
+
+	test("sign-in thrown exception shows toast", async () => {
+		mocks.signIn.email.mockRejectedValue(new Error("Network error"));
+		const LoginPage = mocks.getComponent() as ComponentType;
+		const screen = await render(<LoginPage />);
+		await screen.getByLabelText("Email").fill("a@b.com");
+		await screen.getByLabelText("Password").fill("pwd");
+		await screen.getByRole("button", { name: "Sign In" }).click();
+		await new Promise((r) => setTimeout(r, 50));
+		expect(mocks.toastError).toHaveBeenCalled();
+	});
 });

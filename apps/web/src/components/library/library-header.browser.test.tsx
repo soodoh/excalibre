@@ -72,4 +72,13 @@ describe("LibraryHeader", () => {
 		await screen.getByRole("button", { name: /Scan Now/i }).click();
 		expect(onScan).toHaveBeenCalledOnce();
 	});
+
+	test("calls onSearchChange as the user types", async () => {
+		const onSearchChange = vi.fn();
+		const screen = await render(
+			<LibraryHeader {...defaultProps} onSearchChange={onSearchChange} />,
+		);
+		await screen.getByPlaceholder("Search books...").fill("mystery");
+		expect(onSearchChange).toHaveBeenCalled();
+	});
 });

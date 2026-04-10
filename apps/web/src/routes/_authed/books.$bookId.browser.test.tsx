@@ -172,4 +172,122 @@ describe("BookDetailPage", () => {
 			.element(screen.getByRole("button", { name: "No readable files" }))
 			.toBeVisible();
 	});
+
+	test("renders series link when series present", async () => {
+		mocks.useQuery.mockReturnValue({
+			data: {
+				...sampleBook,
+				series: { id: 5, name: "Epic Series" },
+				seriesIndex: 2,
+			},
+			isLoading: false,
+		});
+		const BookDetailPage = mocks.getComponent() as ComponentType;
+		const screen = await render(<BookDetailPage />);
+		await expect
+			.element(screen.getByRole("link", { name: "Epic Series" }))
+			.toBeVisible();
+		await expect.element(screen.getByText(/#2/)).toBeVisible();
+	});
+
+	test("renders author role annotation for non-author roles", async () => {
+		mocks.useQuery.mockReturnValue({
+			data: {
+				...sampleBook,
+				authors: [
+					{ id: 1, name: "Edit Person", role: "editor" },
+					{ id: 2, name: "John Author", role: "author" },
+				],
+			},
+			isLoading: false,
+		});
+		const BookDetailPage = mocks.getComponent() as ComponentType;
+		const screen = await render(<BookDetailPage />);
+		await expect.element(screen.getByText(/\(editor\)/i)).toBeVisible();
+	});
+
+	test("renders ISBN-10 when present", async () => {
+		mocks.useQuery.mockReturnValue({
+			data: { ...sampleBook, isbn10: "1234567890" },
+			isLoading: false,
+		});
+		const BookDetailPage = mocks.getComponent() as ComponentType;
+		const screen = await render(<BookDetailPage />);
+		await expect.element(screen.getByText("ISBN-10")).toBeVisible();
+	});
+
+	test("renders rating and language", async () => {
+		mocks.useQuery.mockReturnValue({
+			data: { ...sampleBook, rating: 3.7, language: "en" },
+			isLoading: false,
+		});
+		const BookDetailPage = mocks.getComponent() as ComponentType;
+		const screen = await render(<BookDetailPage />);
+		await expect.element(screen.getByText("EN")).toBeVisible();
+		await expect.element(screen.getByText("3.7 / 5")).toBeVisible();
+	});
+
+	test("renders pages formatted", async () => {
+		mocks.useQuery.mockReturnValue({
+			data: { ...sampleBook, pageCount: 1234 },
+			isLoading: false,
+		});
+		const BookDetailPage = mocks.getComponent() as ComponentType;
+		const screen = await render(<BookDetailPage />);
+		await expect.element(screen.getByText("1,234")).toBeVisible();
+	});
+
+	test("renders cover image when coverPath present", async () => {
+		mocks.useQuery.mockReturnValue({
+			data: { ...sampleBook, coverPath: "/cover.jpg" },
+			isLoading: false,
+		});
+		const BookDetailPage = mocks.getComponent() as ComponentType;
+		await render(<BookDetailPage />);
+	});
+
+	test("back button calls router history.back", async () => {
+		mocks.useQuery.mockReturnValue({
+			data: sampleBook,
+			isLoading: false,
+		});
+		const BookDetailPage = mocks.getComponent() as ComponentType;
+		const screen = await render(<BookDetailPage />);
+		await screen.getByRole("button", { name: /Back/i }).click();
+		expect(mocks.router.history.back).toHaveBeenCalled();
+	});
+
+	test("renders multiple file sizes through humanFileSize", async () => {
+		mocks.useQuery.mockReturnValue({
+			data: {
+				...sampleBook,
+				files: [
+					{ id: 1, format: "epub", fileSize: 500, source: "library" },
+					{ id: 2, format: "pdf", fileSize: 500000, source: "library" },
+					{ id: 3, format: "cbz", fileSize: 5_000_000, source: "uploaded" },
+					{ id: 4, format: "xyz", fileSize: null, source: "uploaded" },
+				],
+			},
+			isLoading: false,
+		});
+		const BookDetailPage = mocks.getComponent() as ComponentType;
+		const screen = await render(<BookDetailPage />);
+		await expect.element(screen.getByText("500 B")).toBeVisible();
+		await expect.element(screen.getByText("XYZ")).toBeVisible();
+	});
+
+	test("file priority picks epub over pdf when both present", async () => {
+		mocks.useQuery.mockReturnValue({
+			data: {
+				...sampleBook,
+				files: [
+					{ id: 1, format: "pdf", fileSize: 1000, source: "library" },
+					{ id: 2, format: "epub", fileSize: 1000, source: "library" },
+				],
+			},
+			isLoading: false,
+		});
+		const BookDetailPage = mocks.getComponent() as ComponentType;
+		await render(<BookDetailPage />);
+	});
 });

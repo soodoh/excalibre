@@ -130,4 +130,42 @@ describe("ReadingListForm", () => {
 		await userEvent.type(input, "Winter Reads");
 		await expect.element(input).toHaveValue("Winter Reads");
 	});
+
+	test("submit create reading list success", async () => {
+		mocks.createReadingListFn.mockResolvedValue({ id: 1 });
+		const screen = await render(
+			<ReadingListForm trigger={<button type="button">New List</button>} />,
+			{ wrapper: createWrapper() },
+		);
+		await screen.getByRole("button", { name: "New List" }).click();
+		await userEvent.type(page.getByPlaceholder("My Reading List"), "TBR 2025");
+		await page.getByRole("button", { name: "Create Reading List" }).click();
+		await new Promise((r) => setTimeout(r, 100));
+	});
+
+	test("submit edit reading list success", async () => {
+		mocks.updateReadingListFn.mockResolvedValue({ id: 1 });
+		const screen = await render(
+			<ReadingListForm
+				readingList={{ id: 1, name: "TBR" }}
+				trigger={<button type="button">Edit</button>}
+			/>,
+			{ wrapper: createWrapper() },
+		);
+		await screen.getByRole("button", { name: "Edit" }).click();
+		await page.getByRole("button", { name: "Save Changes" }).click();
+		await new Promise((r) => setTimeout(r, 100));
+	});
+
+	test("submit shows error toast on failure", async () => {
+		mocks.createReadingListFn.mockRejectedValue(new Error("boom"));
+		const screen = await render(
+			<ReadingListForm trigger={<button type="button">New List</button>} />,
+			{ wrapper: createWrapper() },
+		);
+		await screen.getByRole("button", { name: "New List" }).click();
+		await userEvent.type(page.getByPlaceholder("My Reading List"), "X");
+		await page.getByRole("button", { name: "Create Reading List" }).click();
+		await new Promise((r) => setTimeout(r, 100));
+	});
 });

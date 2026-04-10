@@ -131,4 +131,48 @@ describe("ConvertDialog", () => {
 		const submitButton = buttons[buttons.length - 1];
 		await expect.element(submitButton).toBeDisabled();
 	});
+
+	test("shows no supported conversions message", async () => {
+		mocks.getSupportedConversionsFn.mockResolvedValue([]);
+		const screen = await render(
+			<ConvertDialog
+				bookFile={defaultBookFile}
+				bookId={1}
+				trigger={<button type="button">Convert</button>}
+			/>,
+			{ wrapper: createWrapper() },
+		);
+		await screen.getByRole("button", { name: "Convert" }).click();
+		await expect
+			.element(page.getByText("No supported conversions for this format."))
+			.toBeVisible();
+	});
+
+	test("humanFileSize renders small bytes", async () => {
+		mocks.getSupportedConversionsFn.mockResolvedValue(["pdf"]);
+		const screen = await render(
+			<ConvertDialog
+				bookFile={{ id: 10, format: "epub", fileSize: 500 }}
+				bookId={1}
+				trigger={<button type="button">Convert</button>}
+			/>,
+			{ wrapper: createWrapper() },
+		);
+		await screen.getByRole("button", { name: "Convert" }).click();
+		await expect.element(page.getByText("500 B")).toBeVisible();
+	});
+
+	test("humanFileSize renders KB range", async () => {
+		mocks.getSupportedConversionsFn.mockResolvedValue(["pdf"]);
+		const screen = await render(
+			<ConvertDialog
+				bookFile={{ id: 10, format: "epub", fileSize: 500 * 1024 }}
+				bookId={1}
+				trigger={<button type="button">Convert</button>}
+			/>,
+			{ wrapper: createWrapper() },
+		);
+		await screen.getByRole("button", { name: "Convert" }).click();
+		await expect.element(page.getByText("500.0 KB")).toBeVisible();
+	});
 });

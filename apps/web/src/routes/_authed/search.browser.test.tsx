@@ -163,4 +163,41 @@ describe("SearchPage", () => {
 			.element(screen.getByRole("link", { name: "Epic Series" }))
 			.toBeVisible();
 	});
+
+	test("shows loading skeleton when loading", async () => {
+		mocks.searchValue = { q: "query" };
+		mocks.useQuery.mockReturnValue({
+			data: undefined,
+			isLoading: true,
+		});
+		const SearchPage = mocks.getComponent() as ComponentType;
+		await render(<SearchPage />);
+	});
+
+	test("typing in input triggers navigation after debounce", async () => {
+		mocks.searchValue = { q: "" };
+		mocks.useQuery.mockReturnValue({ data: undefined, isLoading: false });
+		const SearchPage = mocks.getComponent() as ComponentType;
+		const screen = await render(<SearchPage />);
+		const input = screen.getByPlaceholder(
+			"Search for books, authors, or series...",
+		);
+		await input.fill("hello");
+		// Wait longer than debounce (300ms)
+		await new Promise((r) => setTimeout(r, 400));
+		expect(mocks.navigate).toHaveBeenCalled();
+	});
+
+	test("typing rapidly replaces debounced timeout", async () => {
+		mocks.searchValue = { q: "" };
+		mocks.useQuery.mockReturnValue({ data: undefined, isLoading: false });
+		const SearchPage = mocks.getComponent() as ComponentType;
+		const screen = await render(<SearchPage />);
+		const input = screen.getByPlaceholder(
+			"Search for books, authors, or series...",
+		);
+		await input.fill("h");
+		await input.fill("he");
+		await input.fill("hel");
+	});
 });

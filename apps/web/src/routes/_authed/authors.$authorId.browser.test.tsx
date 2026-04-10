@@ -131,4 +131,44 @@ describe("AuthorDetailPage", () => {
 		const screen = await render(<AuthorPage />);
 		await expect.element(screen.getByTestId("book-grid")).toBeVisible();
 	});
+
+	test("shows loading skeleton while loading", async () => {
+		mocks.useQuery.mockReturnValue({ data: undefined, isLoading: true });
+		const AuthorPage = mocks.getComponent() as ComponentType;
+		await render(<AuthorPage />);
+	});
+
+	test("singular book count", async () => {
+		mocks.useQuery.mockReturnValue({
+			data: {
+				id: 1,
+				name: "Jane",
+				bio: null,
+				books: [
+					{
+						id: 1,
+						title: "Book",
+						coverPath: null,
+						seriesIndex: null,
+						createdAt: new Date(),
+					},
+				],
+			},
+			isLoading: false,
+		});
+		const AuthorPage = mocks.getComponent() as ComponentType;
+		const screen = await render(<AuthorPage />);
+		await expect.element(screen.getByText("1 book")).toBeVisible();
+	});
+
+	test("back button navigates back", async () => {
+		mocks.useQuery.mockReturnValue({
+			data: { id: 1, name: "Jane", bio: null, books: [] },
+			isLoading: false,
+		});
+		const AuthorPage = mocks.getComponent() as ComponentType;
+		const screen = await render(<AuthorPage />);
+		await screen.getByRole("button", { name: /Back/i }).click();
+		expect(mocks.router.history.back).toHaveBeenCalled();
+	});
 });

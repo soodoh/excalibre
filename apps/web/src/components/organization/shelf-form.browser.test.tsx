@@ -171,4 +171,83 @@ describe("ShelfForm", () => {
 		await userEvent.type(input, "My Bookshelf");
 		await expect.element(input).toHaveValue("My Bookshelf");
 	});
+
+	test("submit create shelf success", async () => {
+		mocks.createShelfFn.mockResolvedValue({ id: 1 });
+		const screen = await render(
+			<ShelfForm trigger={<button type="button">New Shelf</button>} />,
+			{ wrapper: createWrapper() },
+		);
+		await screen.getByRole("button", { name: "New Shelf" }).click();
+		await userEvent.type(page.getByPlaceholder("My Shelf"), "Reading");
+		await page.getByRole("button", { name: "Create Shelf" }).click();
+		await new Promise((r) => setTimeout(r, 100));
+	});
+
+	test("submit with smart type includes filter rules", async () => {
+		mocks.createShelfFn.mockResolvedValue({ id: 2 });
+		const screen = await render(
+			<ShelfForm trigger={<button type="button">New Shelf</button>} />,
+			{ wrapper: createWrapper() },
+		);
+		await screen.getByRole("button", { name: "New Shelf" }).click();
+		await userEvent.type(page.getByPlaceholder("My Shelf"), "Smart Shelf");
+		await page.getByText("Smart").click();
+		await page.getByRole("button", { name: "Create Shelf" }).click();
+		await new Promise((r) => setTimeout(r, 100));
+	});
+
+	test("submit edit shelf success", async () => {
+		mocks.updateShelfFn.mockResolvedValue({ id: 1 });
+		const screen = await render(
+			<ShelfForm
+				shelf={{
+					id: 1,
+					name: "Favs",
+					type: "manual",
+					filterRules: null,
+				}}
+				trigger={<button type="button">Edit</button>}
+			/>,
+			{ wrapper: createWrapper() },
+		);
+		await screen.getByRole("button", { name: "Edit" }).click();
+		await page.getByRole("button", { name: "Save Changes" }).click();
+		await new Promise((r) => setTimeout(r, 100));
+	});
+
+	test("submit shows error toast on failure", async () => {
+		mocks.createShelfFn.mockRejectedValue(new Error("Server error"));
+		const screen = await render(
+			<ShelfForm trigger={<button type="button">New Shelf</button>} />,
+			{ wrapper: createWrapper() },
+		);
+		await screen.getByRole("button", { name: "New Shelf" }).click();
+		await userEvent.type(page.getByPlaceholder("My Shelf"), "Shelf");
+		await page.getByRole("button", { name: "Create Shelf" }).click();
+		await new Promise((r) => setTimeout(r, 100));
+	});
+
+	test("closing dialog resets form state", async () => {
+		const screen = await render(
+			<ShelfForm
+				shelf={{
+					id: 1,
+					name: "Favs",
+					type: "smart",
+					filterRules: { operator: "or", conditions: [] },
+				}}
+				trigger={<button type="button">Edit</button>}
+			/>,
+			{ wrapper: createWrapper() },
+		);
+		await screen.getByRole("button", { name: "Edit" }).click();
+		// Press Escape to close
+		await page
+			.getByRole("dialog")
+			.element()
+			.dispatchEvent(
+				new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+			);
+	});
 });

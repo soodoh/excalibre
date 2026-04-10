@@ -6,6 +6,8 @@ const mocks = vi.hoisted(() => {
 	return {
 		signUp: { email: vi.fn() },
 		navigate: vi.fn(),
+		toastError: vi.fn(),
+		toastSuccess: vi.fn(),
 		setComponent: (c: unknown) => {
 			captured = c;
 		},
@@ -52,8 +54,8 @@ vi.mock("src/server/auth", () => ({
 
 vi.mock("sonner", () => ({
 	toast: {
-		error: vi.fn(),
-		success: vi.fn(),
+		error: mocks.toastError,
+		success: mocks.toastSuccess,
 	},
 }));
 
@@ -100,5 +102,56 @@ describe("RegisterPage", () => {
 		await expect
 			.element(screen.getByRole("link", { name: "Sign in" }))
 			.toBeVisible();
+	});
+
+	test("successful sign-up navigates to home", async () => {
+		mocks.signUp.email.mockResolvedValue({ error: null });
+		const RegisterPage = mocks.getComponent() as ComponentType;
+		const screen = await render(<RegisterPage />);
+		await screen.getByLabelText("Name").fill("Jane");
+		await screen.getByLabelText("Email").fill("j@b.com");
+		await screen.getByLabelText("Password").fill("password123");
+		await screen.getByRole("button", { name: "Register" }).click();
+		await new Promise((r) => setTimeout(r, 50));
+		expect(mocks.navigate).toHaveBeenCalledWith({ to: "/" });
+		expect(mocks.toastSuccess).toHaveBeenCalled();
+	});
+
+	test("sign-up error shows toast", async () => {
+		mocks.signUp.email.mockResolvedValue({
+			error: { message: "Email taken" },
+		});
+		const RegisterPage = mocks.getComponent() as ComponentType;
+		const screen = await render(<RegisterPage />);
+		await screen.getByLabelText("Name").fill("Jane");
+		await screen.getByLabelText("Email").fill("j@b.com");
+		await screen.getByLabelText("Password").fill("password123");
+		await screen.getByRole("button", { name: "Register" }).click();
+		await new Promise((r) => setTimeout(r, 50));
+		expect(mocks.toastError).toHaveBeenCalled();
+	});
+
+	test("sign-up error without message uses default", async () => {
+		mocks.signUp.email.mockResolvedValue({ error: {} });
+		const RegisterPage = mocks.getComponent() as ComponentType;
+		const screen = await render(<RegisterPage />);
+		await screen.getByLabelText("Name").fill("Jane");
+		await screen.getByLabelText("Email").fill("j@b.com");
+		await screen.getByLabelText("Password").fill("password123");
+		await screen.getByRole("button", { name: "Register" }).click();
+		await new Promise((r) => setTimeout(r, 50));
+		expect(mocks.toastError).toHaveBeenCalled();
+	});
+
+	test("sign-up thrown exception shows toast", async () => {
+		mocks.signUp.email.mockRejectedValue(new Error("Network error"));
+		const RegisterPage = mocks.getComponent() as ComponentType;
+		const screen = await render(<RegisterPage />);
+		await screen.getByLabelText("Name").fill("Jane");
+		await screen.getByLabelText("Email").fill("j@b.com");
+		await screen.getByLabelText("Password").fill("password123");
+		await screen.getByRole("button", { name: "Register" }).click();
+		await new Promise((r) => setTimeout(r, 50));
+		expect(mocks.toastError).toHaveBeenCalled();
 	});
 });

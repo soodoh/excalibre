@@ -96,4 +96,93 @@ describe("JobsSettingsPage", () => {
 		await expect.element(screen.getByText("completed")).toBeVisible();
 		await expect.element(screen.getByText("Library scan")).toBeVisible();
 	});
+
+	test("renders jobs of all types and statuses with various timestamps", async () => {
+		const now = Date.now();
+		mocks.useQuery.mockReturnValue({
+			data: [
+				{
+					id: 1,
+					type: "convert",
+					status: "running",
+					payload: { sourceFormat: "epub", targetFormat: "mobi" },
+					result: null,
+					error: null,
+					priority: 0,
+					attempts: 1,
+					maxAttempts: 3,
+					scheduledAt: null,
+					startedAt: new Date(now - 30 * 1000),
+					completedAt: null,
+					createdAt: new Date(now - 5 * 60 * 1000),
+				},
+				{
+					id: 2,
+					type: "convert",
+					status: "pending",
+					payload: { sourceFormat: 5, targetFormat: 10 },
+					result: null,
+					error: null,
+					priority: 0,
+					attempts: 0,
+					maxAttempts: 3,
+					scheduledAt: null,
+					startedAt: null,
+					completedAt: null,
+					createdAt: new Date(now - 30 * 1000),
+				},
+				{
+					id: 3,
+					type: "epub_fix",
+					status: "failed",
+					payload: { fileId: 1 },
+					result: null,
+					error: "oh no something broke very badly on this system",
+					priority: 0,
+					attempts: 3,
+					maxAttempts: 3,
+					scheduledAt: null,
+					startedAt: new Date(now - 60 * 60 * 1000),
+					completedAt: new Date(now - 59 * 60 * 1000),
+					createdAt: new Date(now - 60 * 60 * 1000),
+				},
+				{
+					id: 4,
+					type: "scan",
+					status: "completed",
+					payload: {},
+					result: null,
+					error: null,
+					priority: 0,
+					attempts: 1,
+					maxAttempts: 3,
+					scheduledAt: null,
+					startedAt: new Date(now - 24 * 60 * 60 * 1000),
+					completedAt: new Date(now - 24 * 60 * 60 * 1000 + 1000),
+					createdAt: new Date(now - 2 * 24 * 60 * 60 * 1000),
+				},
+				{
+					id: 5,
+					type: "scan",
+					status: "pending",
+					payload: null,
+					result: null,
+					error: null,
+					priority: 0,
+					attempts: 0,
+					maxAttempts: 3,
+					scheduledAt: null,
+					startedAt: null,
+					completedAt: null,
+					createdAt: new Date(now - 60 * 1000),
+				},
+			],
+			isLoading: false,
+		});
+		const Page = mocks.getComponent() as ComponentType;
+		const screen = await render(<Page />);
+		await expect.element(screen.getByText("running")).toBeVisible();
+		await expect.element(screen.getByText("failed")).toBeVisible();
+		await expect.element(screen.getByText("Fix EPUB")).toBeVisible();
+	});
 });

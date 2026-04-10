@@ -3,10 +3,30 @@ import { render } from "vitest-browser-react";
 
 const mocks = vi.hoisted(() => {
 	let captured: unknown = null;
+	const mutations: Array<{
+		mutationFn: (...args: unknown[]) => unknown;
+		onSuccess?: (...args: unknown[]) => unknown;
+		onError?: (error: Error) => unknown;
+	}> = [];
 	return {
 		useQuery: vi.fn(),
-		useMutation: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
-		useQueryClient: vi.fn(() => ({ invalidateQueries: vi.fn() })),
+		useMutation: vi.fn(
+			(opts: {
+				mutationFn: (...args: unknown[]) => unknown;
+				onSuccess?: (...args: unknown[]) => unknown;
+				onError?: (error: Error) => unknown;
+			}) => {
+				mutations.push(opts);
+				return { mutate: vi.fn(), isPending: false };
+			},
+		),
+		useQueryClient: vi.fn(() => ({
+			invalidateQueries: vi.fn().mockResolvedValue(undefined),
+		})),
+		mutations,
+		resetMutations: () => {
+			mutations.length = 0;
+		},
 		params: { collectionId: "1" },
 		router: { history: { back: vi.fn() } },
 		setComponent: (c: unknown) => {
@@ -131,5 +151,59 @@ describe("CollectionBrowsePage", () => {
 		const Page = mocks.getComponent() as ComponentType;
 		const screen = await render(<Page />);
 		await expect.element(screen.getByText("Interesting Book")).toBeVisible();
+	});
+
+	test("shows skeleton while collection loading", async () => {
+		mocks.useQuery.mockImplementation(() => ({
+			data: undefined,
+			isLoading: true,
+		}));
+		const Page = mocks.getComponent() as ComponentType;
+		await render(<Page />);
+	});
+
+	test("back button calls router.history.back", async () => {
+		setQueries([{ id: 1, name: "Favorites" }], []);
+		const Page = mocks.getComponent() as ComponentType;
+		const screen = await render(<Page />);
+		await screen.getByRole("button", { name: /Back/i }).click();
+		expect(mocks.router.history.back).toHaveBeenCalled();
+	});
+
+	test("delete button opens confirmation dialog", async () => {
+		setQueries([{ id: 1, name: "Favorites" }], []);
+		const Page = mocks.getComponent() as ComponentType;
+		const screen = await render(<Page />);
+		await screen.getByRole("button", { name: /Delete/i }).click();
+		await expect
+			.element(screen.getByRole("heading", { name: "Delete Collection" }))
+			.toBeVisible();
+		await screen.getByRole("button", { name: "Cancel" }).click();
+	});
+
+	test("renders cover image when coverPath present", async () => {
+		setQueries(
+			[{ id: 1, name: "Favorites" }],
+			[{ id: 10, title: "A", coverPath: "/c.jpg", authorName: "Auth" }],
+		);
+		const Page = mocks.getComponent() as ComponentType;
+		await render(<Page />);
+	});
+
+	test("mutation success/error handlers execute", async () => {
+		mocks.resetMutations();
+		setQueries([{ id: 1, name: "Favorites" }], []);
+		const Page = mocks.getComponent() as ComponentType;
+		await render(<Page />);
+		// deleteMutation [0]
+		await mocks.mutations[0]?.onSuccess?.();
+		mocks.mutations[0]?.onError?.(new Error("del"));
+		mocks.mutations[0]?.onError?.(new Error(""));
+		await mocks.mutations[0]?.mutationFn?.();
+		// removeBookMutation [1]
+		await mocks.mutations[1]?.onSuccess?.();
+		mocks.mutations[1]?.onError?.(new Error("rem"));
+		mocks.mutations[1]?.onError?.(new Error(""));
+		await mocks.mutations[1]?.mutationFn?.(10);
 	});
 });

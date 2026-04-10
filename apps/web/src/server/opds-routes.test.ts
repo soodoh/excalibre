@@ -111,6 +111,131 @@ describe("OPDS route auth propagation", () => {
 		expect(next.searchParams.get("apikey")).toBe("feed-key");
 	});
 
+	test("recent feed returns 401 when unauthenticated", async () => {
+		authenticateOpds.mockResolvedValue(null);
+		const { handleRecentOpdsRequest } = await import(
+			"src/routes/api/opds/recent"
+		);
+		const response = await handleRecentOpdsRequest(
+			new Request("https://example.com/api/opds/recent"),
+		);
+		expect(response.status).toBe(401);
+	});
+
+	test("recent feed returns entries when books accessible", async () => {
+		authenticateOpds.mockResolvedValue({
+			mode: "opds",
+			userId: "user-1",
+			apiKey: "feed-key",
+		});
+		getAccessibleLibraryIds.mockResolvedValue([1]);
+		dbSelect
+			.mockReturnValueOnce({
+				from: () => ({
+					where: () => ({
+						orderBy: () => ({
+							limit: () =>
+								Promise.resolve([
+									{
+										id: 1,
+										libraryId: 1,
+										title: "Book 1",
+										createdAt: new Date(),
+										updatedAt: new Date(),
+										language: "en",
+										publisher: "Pub",
+										description: "Desc",
+										coverPath: "/tmp/cover.jpg",
+										pageCount: 100,
+									},
+								]),
+						}),
+					}),
+				}),
+			})
+			.mockReturnValueOnce({
+				from: () => ({
+					where: () =>
+						Promise.resolve([
+							{ bookId: 1, id: 100, filePath: "/b.cbz", format: "cbz" },
+							{ bookId: 1, id: 101, filePath: "/b.epub", format: "epub" },
+						]),
+				}),
+			})
+			.mockReturnValueOnce({
+				from: () => ({
+					innerJoin: () => ({
+						where: () =>
+							Promise.resolve([
+								{ bookId: 1, id: 5, name: "Jane Doe", role: "author" },
+							]),
+					}),
+				}),
+			});
+		const { handleRecentOpdsRequest } = await import(
+			"src/routes/api/opds/recent"
+		);
+		const response = await handleRecentOpdsRequest(
+			new Request("https://example.com/api/opds/recent"),
+		);
+		expect(response.status).toBe(200);
+	});
+
+	test("all feed returns 401 when unauthenticated", async () => {
+		authenticateOpds.mockResolvedValue(null);
+		const { handleAllOpdsRequest } = await import("src/routes/api/opds/all");
+		const response = await handleAllOpdsRequest(
+			new Request("https://example.com/api/opds/all"),
+		);
+		expect(response.status).toBe(401);
+	});
+
+	test("library feed returns 401 when unauthenticated", async () => {
+		authenticateOpds.mockResolvedValue(null);
+		const { handleLibraryOpdsRequest } = await import(
+			"src/routes/api/opds/libraries.$libraryId"
+		);
+		const response = await handleLibraryOpdsRequest(
+			new Request("https://example.com/api/opds/libraries/7"),
+			{ libraryId: "7" },
+		);
+		expect(response.status).toBe(401);
+	});
+
+	test("library feed returns 404 for invalid library id", async () => {
+		authenticateOpds.mockResolvedValue({
+			mode: "opds",
+			userId: "user-1",
+			apiKey: "feed-key",
+		});
+		const { handleLibraryOpdsRequest } = await import(
+			"src/routes/api/opds/libraries.$libraryId"
+		);
+		const response = await handleLibraryOpdsRequest(
+			new Request("https://example.com/api/opds/libraries/abc"),
+			{ libraryId: "abc" },
+		);
+		expect([400, 404]).toContain(response.status);
+	});
+
+	test("library feed returns 404 when library not found", async () => {
+		authenticateOpds.mockResolvedValue({
+			mode: "opds",
+			userId: "user-1",
+			apiKey: "feed-key",
+		});
+		librariesFindFirst.mockResolvedValue(undefined);
+		userFindFirst.mockResolvedValue({ role: "admin" });
+		const { handleLibraryOpdsRequest } = await import(
+			"src/routes/api/opds/libraries.$libraryId"
+		);
+		const response = await handleLibraryOpdsRequest(
+			new Request("https://example.com/api/opds/libraries/999"),
+			{ libraryId: "999" },
+		);
+		expect(response.status).toBe(404);
+	});
+
 	test("library feed preserves apikey on previous and next pagination links", async () => {
 		authenticateOpds.mockResolvedValue({
 			mode: "opds",

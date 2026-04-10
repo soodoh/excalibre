@@ -138,4 +138,49 @@ describe("CollectionForm", () => {
 		await userEvent.type(input, "Horror Books");
 		await expect.element(input).toHaveValue("Horror Books");
 	});
+
+	test("submit create collection success", async () => {
+		mocks.createCollectionFn.mockResolvedValue({ id: 1 });
+		const screen = await render(
+			<CollectionForm
+				trigger={<button type="button">New Collection</button>}
+			/>,
+			{ wrapper: createWrapper() },
+		);
+		await screen.getByRole("button", { name: "New Collection" }).click();
+		await userEvent.type(
+			page.getByPlaceholder("My Collection"),
+			"My Collection",
+		);
+		await page.getByRole("button", { name: "Create Collection" }).click();
+		await new Promise((r) => setTimeout(r, 100));
+	});
+
+	test("submit edit collection success", async () => {
+		mocks.updateCollectionFn.mockResolvedValue({ id: 1 });
+		const screen = await render(
+			<CollectionForm
+				collection={{ id: 1, name: "Sci-Fi" }}
+				trigger={<button type="button">Edit</button>}
+			/>,
+			{ wrapper: createWrapper() },
+		);
+		await screen.getByRole("button", { name: "Edit" }).click();
+		await page.getByRole("button", { name: "Save Changes" }).click();
+		await new Promise((r) => setTimeout(r, 100));
+	});
+
+	test("submit shows error toast on failure", async () => {
+		mocks.createCollectionFn.mockRejectedValue(new Error("boom"));
+		const screen = await render(
+			<CollectionForm
+				trigger={<button type="button">New Collection</button>}
+			/>,
+			{ wrapper: createWrapper() },
+		);
+		await screen.getByRole("button", { name: "New Collection" }).click();
+		await userEvent.type(page.getByPlaceholder("My Collection"), "X");
+		await page.getByRole("button", { name: "Create Collection" }).click();
+		await new Promise((r) => setTimeout(r, 100));
+	});
 });

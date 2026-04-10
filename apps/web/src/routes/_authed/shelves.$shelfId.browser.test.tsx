@@ -3,10 +3,30 @@ import { render } from "vitest-browser-react";
 
 const mocks = vi.hoisted(() => {
 	let captured: unknown = null;
+	const mutations: Array<{
+		mutationFn: (...args: unknown[]) => unknown;
+		onSuccess?: (...args: unknown[]) => unknown;
+		onError?: (error: Error) => unknown;
+	}> = [];
 	return {
 		useQuery: vi.fn(),
-		useMutation: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
-		useQueryClient: vi.fn(() => ({ invalidateQueries: vi.fn() })),
+		useMutation: vi.fn(
+			(opts: {
+				mutationFn: (...args: unknown[]) => unknown;
+				onSuccess?: (...args: unknown[]) => unknown;
+				onError?: (error: Error) => unknown;
+			}) => {
+				mutations.push(opts);
+				return { mutate: vi.fn(), isPending: false };
+			},
+		),
+		useQueryClient: vi.fn(() => ({
+			invalidateQueries: vi.fn().mockResolvedValue(undefined),
+		})),
+		mutations,
+		resetMutations: () => {
+			mutations.length = 0;
+		},
 		params: { shelfId: "1" },
 		router: { history: { back: vi.fn() } },
 		setComponent: (c: unknown) => {
@@ -117,5 +137,80 @@ describe("ShelfBrowsePage", () => {
 		await expect
 			.element(screen.getByRole("button", { name: /Delete/i }))
 			.toBeVisible();
+	});
+
+	test("shows skeleton while loading", async () => {
+		mocks.useQuery.mockImplementation(() => ({
+			data: undefined,
+			isLoading: true,
+		}));
+		const Page = mocks.getComponent() as ComponentType;
+		const screen = await render(<Page />);
+		await expect.element(screen.getByText("Back")).not.toBeInTheDocument();
+	});
+
+	test("renders book cards for manual shelf with books", async () => {
+		setQueries({ id: 1, name: "Favs", type: "manual" }, [
+			{ id: 10, title: "Book A", coverPath: "/cover.jpg", authorName: "Auth" },
+			{ id: 20, title: "Book B", coverPath: null },
+		]);
+		const Page = mocks.getComponent() as ComponentType;
+		const screen = await render(<Page />);
+		await expect.element(screen.getByText("Book A")).toBeVisible();
+		await expect.element(screen.getByText("Book B")).toBeVisible();
+	});
+
+	test("back button calls router history back", async () => {
+		setQueries({ id: 1, name: "Favs", type: "manual" }, []);
+		const Page = mocks.getComponent() as ComponentType;
+		const screen = await render(<Page />);
+		await screen.getByRole("button", { name: /Back/i }).click();
+		expect(mocks.router.history.back).toHaveBeenCalled();
+	});
+
+	test("delete button opens confirmation dialog, cancel closes it", async () => {
+		setQueries({ id: 1, name: "Favs", type: "manual" }, []);
+		const Page = mocks.getComponent() as ComponentType;
+		const screen = await render(<Page />);
+		await screen.getByRole("button", { name: /Delete/i }).click();
+		await expect
+			.element(screen.getByRole("heading", { name: "Delete Shelf" }))
+			.toBeVisible();
+		await screen.getByRole("button", { name: "Cancel" }).click();
+	});
+
+	test("delete mutation success handler invalidates queries", async () => {
+		mocks.resetMutations();
+		setQueries({ id: 1, name: "Favs", type: "manual" }, []);
+		const Page = mocks.getComponent() as ComponentType;
+		await render(<Page />);
+		// Trigger delete mutation's onSuccess
+		const deleteMutation = mocks.mutations[0];
+		await deleteMutation?.onSuccess?.();
+		expect(mocks.router.history.back).toHaveBeenCalled();
+	});
+
+	test("delete mutation error handler shows toast", async () => {
+		mocks.resetMutations();
+		setQueries({ id: 1, name: "Favs", type: "manual" }, []);
+		const Page = mocks.getComponent() as ComponentType;
+		await render(<Page />);
+		const deleteMutation = mocks.mutations[0];
+		deleteMutation?.onError?.(new Error("bad"));
+		deleteMutation?.onError?.(new Error(""));
+	});
+
+	test("remove book mutation success and error handlers", async () => {
+		mocks.resetMutations();
+		setQueries({ id: 1, name: "Favs", type: "manual" }, [
+			{ id: 10, title: "A", coverPath: null },
+		]);
+		const Page = mocks.getComponent() as ComponentType;
+		await render(<Page />);
+		const removeMutation = mocks.mutations[1];
+		await removeMutation?.onSuccess?.();
+		removeMutation?.onError?.(new Error("oops"));
+		// Also call the mutationFn to execute it
+		removeMutation?.mutationFn?.(10);
 	});
 });

@@ -3,13 +3,41 @@ import { render } from "vitest-browser-react";
 
 const mocks = vi.hoisted(() => {
 	let captured: unknown = null;
+	const mutations: Array<{
+		mutationFn: (...args: unknown[]) => unknown;
+		onSuccess?: (...args: unknown[]) => unknown;
+		onError?: (error: Error) => unknown;
+	}> = [];
+	let headerProps: {
+		onSearchChange: (v: string) => void;
+		onScan: () => void;
+	} | null = null;
 	return {
 		useQuery: vi.fn(),
-		useMutation: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
-		useQueryClient: vi.fn(() => ({ invalidateQueries: vi.fn() })),
+		useMutation: vi.fn(
+			(opts: {
+				mutationFn: (...args: unknown[]) => unknown;
+				onSuccess?: (...args: unknown[]) => unknown;
+				onError?: (error: Error) => unknown;
+			}) => {
+				mutations.push(opts);
+				return { mutate: vi.fn(), isPending: false };
+			},
+		),
+		useQueryClient: vi.fn(() => ({
+			invalidateQueries: vi.fn().mockResolvedValue(undefined),
+		})),
 		useSession: vi.fn(() => ({
 			data: { user: { id: "1", role: "admin" } },
 		})),
+		mutations,
+		resetMutations: () => {
+			mutations.length = 0;
+		},
+		setHeaderProps: (p: typeof headerProps) => {
+			headerProps = p;
+		},
+		getHeaderProps: () => headerProps,
 		params: { libraryId: "1" },
 		setComponent: (c: unknown) => {
 			captured = c;
@@ -61,17 +89,19 @@ vi.mock("src/server/scan-actions", () => ({
 }));
 
 vi.mock("src/components/library/library-header", () => ({
-	default: ({
-		library,
-		bookCount,
-	}: {
+	default: (props: {
 		library: { name: string };
 		bookCount: number;
-	}) => (
-		<div data-testid="library-header">
-			{library.name} ({bookCount})
-		</div>
-	),
+		onSearchChange: (v: string) => void;
+		onScan: () => void;
+	}) => {
+		mocks.setHeaderProps(props);
+		return (
+			<div data-testid="library-header">
+				{props.library.name} ({props.bookCount})
+			</div>
+		);
+	},
 }));
 
 vi.mock("src/components/library/book-grid", () => ({
@@ -129,5 +159,42 @@ describe("LibraryBrowsePage", () => {
 		const screen = await render(<Page />);
 		await expect.element(screen.getByTestId("library-header")).toBeVisible();
 		await expect.element(screen.getByTestId("book-grid")).toBeVisible();
+	});
+
+	test("search and scan callbacks work", async () => {
+		setQueries({ id: 1, name: "Fiction" }, { books: [], total: 0 });
+		const Page = mocks.getComponent() as ComponentType;
+		await render(<Page />);
+		const headerProps = mocks.getHeaderProps();
+		headerProps?.onSearchChange("hello");
+		headerProps?.onScan();
+	});
+
+	test("scan mutation success and error handlers", async () => {
+		mocks.resetMutations();
+		setQueries({ id: 1, name: "Fiction" }, { books: [], total: 0 });
+		const Page = mocks.getComponent() as ComponentType;
+		await render(<Page />);
+		const mut = mocks.mutations[0];
+		await mut?.onSuccess?.({ added: 1, updated: 2, missing: 3 });
+		mut?.onError?.(new Error("scan fail"));
+		mut?.onError?.(new Error(""));
+		await mut?.mutationFn?.();
+	});
+
+	test("isAdmin is false for non-admin users", async () => {
+		mocks.useSession.mockReturnValueOnce({
+			data: { user: { id: "1", role: "user" } },
+		});
+		setQueries({ id: 1, name: "Fiction" }, { books: [], total: 0 });
+		const Page = mocks.getComponent() as ComponentType;
+		await render(<Page />);
+	});
+
+	test("session undefined works", async () => {
+		mocks.useSession.mockReturnValueOnce({ data: undefined });
+		setQueries({ id: 1, name: "Fiction" }, { books: [], total: 0 });
+		const Page = mocks.getComponent() as ComponentType;
+		await render(<Page />);
 	});
 });

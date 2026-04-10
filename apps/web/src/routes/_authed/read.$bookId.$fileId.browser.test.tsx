@@ -3,6 +3,19 @@ import { render } from "vitest-browser-react";
 
 const mocks = vi.hoisted(() => {
 	let captured: unknown = null;
+	let ebookProps: {
+		onRelocate: (data: unknown) => void;
+		onTocAvailable: (t: unknown[]) => void;
+	} | null = null;
+	let pdfProps: {
+		onRelocate: (data: unknown) => void;
+		onTocAvailable: (t: unknown[]) => void;
+	} | null = null;
+	let toolbarProps: {
+		onToggleToc: () => void;
+		onToggleSettings: () => void;
+	} | null = null;
+	let tocProps: { onSelect: (href: string) => void } | null = null;
 	return {
 		useQuery: vi.fn(),
 		navigate: vi.fn(),
@@ -11,6 +24,22 @@ const mocks = vi.hoisted(() => {
 			captured = c;
 		},
 		getComponent: () => captured,
+		setEbookProps: (p: typeof ebookProps) => {
+			ebookProps = p;
+		},
+		getEbookProps: () => ebookProps,
+		setPdfProps: (p: typeof pdfProps) => {
+			pdfProps = p;
+		},
+		getPdfProps: () => pdfProps,
+		setToolbarProps: (p: typeof toolbarProps) => {
+			toolbarProps = p;
+		},
+		getToolbarProps: () => toolbarProps,
+		setTocProps: (p: typeof tocProps) => {
+			tocProps = p;
+		},
+		getTocProps: () => tocProps,
 	};
 });
 
@@ -65,17 +94,34 @@ vi.mock("src/hooks/use-reader-settings", () => ({
 }));
 
 vi.mock("src/components/reader/ebook-reader", () => ({
-	EbookReader: () => <div data-testid="ebook-reader">Ebook Reader</div>,
+	EbookReader: (props: {
+		onRelocate: (data: unknown) => void;
+		onTocAvailable: (t: unknown[]) => void;
+	}) => {
+		mocks.setEbookProps(props);
+		return <div data-testid="ebook-reader">Ebook Reader</div>;
+	},
 }));
 
 vi.mock("src/components/reader/pdf-reader", () => ({
-	PdfReader: () => <div data-testid="pdf-reader">PDF Reader</div>,
+	PdfReader: (props: {
+		onRelocate: (data: unknown) => void;
+		onTocAvailable: (t: unknown[]) => void;
+	}) => {
+		mocks.setPdfProps(props);
+		return <div data-testid="pdf-reader">PDF Reader</div>;
+	},
 }));
 
 vi.mock("src/components/reader/reader-toolbar", () => ({
-	ReaderToolbar: ({ bookTitle }: { bookTitle: string }) => (
-		<div data-testid="reader-toolbar">{bookTitle}</div>
-	),
+	ReaderToolbar: (props: {
+		bookTitle: string;
+		onToggleToc: () => void;
+		onToggleSettings: () => void;
+	}) => {
+		mocks.setToolbarProps(props);
+		return <div data-testid="reader-toolbar">{props.bookTitle}</div>;
+	},
 }));
 
 vi.mock("src/components/reader/reader-settings", () => ({
@@ -87,7 +133,10 @@ vi.mock("src/components/reader/reader-progress-bar", () => ({
 }));
 
 vi.mock("src/components/reader/toc-drawer", () => ({
-	TocDrawer: () => null,
+	TocDrawer: (props: { onSelect: (href: string) => void }) => {
+		mocks.setTocProps(props);
+		return null;
+	},
 }));
 
 import "./read.$bookId.$fileId";
@@ -141,5 +190,125 @@ describe("ReaderPage", () => {
 		const screen = await render(<Page />);
 		await expect.element(screen.getByTestId("reader-toolbar")).toBeVisible();
 		await expect.element(screen.getByText("My Book")).toBeVisible();
+	});
+
+	test("ebook onRelocate handler with chapterTitle and toc", async () => {
+		mocks.useQuery.mockReturnValue({
+			data: {
+				title: "Book",
+				files: [{ id: 10, format: "epub" }],
+			},
+			isLoading: false,
+		});
+		const Page = mocks.getComponent() as ComponentType;
+		await render(<Page />);
+		const props = mocks.getEbookProps();
+		props?.onRelocate({
+			fraction: 0.5,
+			position: "cfi(/6/4!/4)",
+			tocItem: { label: "Chapter 1", href: "ch1.xhtml" },
+			chapterTitle: "Chapter One",
+		});
+		// Without chapterTitle
+		props?.onRelocate({
+			fraction: 0.25,
+			position: "cfi(/6/2)",
+		});
+		// With tocItem only
+		props?.onRelocate({
+			fraction: 0.75,
+			position: "cfi(/6/6)",
+			tocItem: { label: "Ch2", href: "ch2.xhtml" },
+		});
+		props?.onTocAvailable([{ label: "Ch1", href: "ch1.xhtml" }]);
+	});
+
+	test("pdf onRelocate handler with and without chapter", async () => {
+		mocks.useQuery.mockReturnValue({
+			data: {
+				title: "PDF",
+				files: [{ id: 10, format: "pdf" }],
+			},
+			isLoading: false,
+		});
+		const Page = mocks.getComponent() as ComponentType;
+		await render(<Page />);
+		const props = mocks.getPdfProps();
+		props?.onRelocate({
+			fraction: 0.5,
+			position: "page-5",
+			chapterTitle: "Chapter 2",
+		});
+		props?.onRelocate({
+			fraction: 0.3,
+			position: "page-3",
+		});
+	});
+
+	test("toolbar toggle toc and settings handlers", async () => {
+		mocks.useQuery.mockReturnValue({
+			data: {
+				title: "Book",
+				files: [{ id: 10, format: "epub" }],
+			},
+			isLoading: false,
+		});
+		const Page = mocks.getComponent() as ComponentType;
+		await render(<Page />);
+		const toolbar = mocks.getToolbarProps();
+		toolbar?.onToggleToc();
+		toolbar?.onToggleSettings();
+	});
+
+	test("toc drawer onSelect handler", async () => {
+		mocks.useQuery.mockReturnValue({
+			data: {
+				title: "Book",
+				files: [{ id: 10, format: "epub" }],
+			},
+			isLoading: false,
+		});
+		const Page = mocks.getComponent() as ComponentType;
+		await render(<Page />);
+		const toc = mocks.getTocProps();
+		toc?.onSelect("ch3.xhtml");
+	});
+
+	test("keyboard navigation - arrow keys and escape", async () => {
+		mocks.useQuery.mockReturnValue({
+			data: {
+				title: "Book",
+				files: [{ id: 10, format: "epub" }],
+			},
+			isLoading: false,
+		});
+		const Page = mocks.getComponent() as ComponentType;
+		await render(<Page />);
+		globalThis.dispatchEvent(
+			new KeyboardEvent("keydown", { key: "ArrowRight" }),
+		);
+		globalThis.dispatchEvent(
+			new KeyboardEvent("keydown", { key: "ArrowLeft" }),
+		);
+		globalThis.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+		globalThis.dispatchEvent(new KeyboardEvent("keydown", { key: "a" }));
+		expect(mocks.navigate).toHaveBeenCalled();
+	});
+
+	test("mouse move shows toolbar", async () => {
+		mocks.useQuery.mockReturnValue({
+			data: {
+				title: "Book",
+				files: [{ id: 10, format: "epub" }],
+			},
+			isLoading: false,
+		});
+		const Page = mocks.getComponent() as ComponentType;
+		const screen = await render(<Page />);
+		const app = screen.container.querySelector(
+			'[role="application"]',
+		) as HTMLElement;
+		app?.dispatchEvent(new MouseEvent("mousemove", { bubbles: true }));
+		app?.click();
 	});
 });

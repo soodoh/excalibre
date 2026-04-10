@@ -44,52 +44,50 @@ vi.mock("@tanstack/react-router", () => ({
 			return { component: opts.component };
 		},
 	redirect: mocks.redirect,
+	Outlet: () => <div data-testid="outlet">Outlet</div>,
 }));
 
 vi.mock("src/server/middleware", () => ({
 	getAuthSessionFn: mocks.getAuthSessionFn,
 }));
 
-import "./users";
+vi.mock("src/components/layout/app-layout", () => ({
+	default: ({ children }: { children: React.ReactNode }) => (
+		<div data-testid="app-layout">{children}</div>
+	),
+}));
+
+import "./_authed";
 
 type ComponentType = () => React.JSX.Element;
 
-describe("UsersSettingsPage", () => {
-	test("renders title and description", async () => {
+describe("AuthedLayout", () => {
+	test("renders AppLayout wrapping Outlet", async () => {
 		const Page = mocks.getComponent() as ComponentType;
 		const screen = await render(<Page />);
-		await expect
-			.element(screen.getByRole("heading", { name: "Users" }))
-			.toBeVisible();
-		await expect
-			.element(screen.getByText("Manage users and library access."))
-			.toBeVisible();
+		await expect.element(screen.getByTestId("app-layout")).toBeVisible();
+		await expect.element(screen.getByTestId("outlet")).toBeVisible();
 	});
 
-	test("beforeLoad allows admin session", async () => {
-		mocks.getAuthSessionFn.mockResolvedValue({
-			user: { role: "admin" },
-		});
+	test("beforeLoad returns session when authenticated", async () => {
+		const session = { user: { id: "u1", role: "admin" } };
+		mocks.getAuthSessionFn.mockResolvedValue(session);
 		const opts = mocks.getOpts();
-		await opts?.beforeLoad?.();
-		expect(mocks.redirect).not.toHaveBeenCalled();
-	});
-
-	test("beforeLoad redirects non-admin", async () => {
-		mocks.getAuthSessionFn.mockResolvedValue({
-			user: { role: "user" },
+		const result = await opts?.beforeLoad?.({
+			location: { href: "/books" },
 		});
-		const opts = mocks.getOpts();
-		await expect(async () => {
-			await opts?.beforeLoad?.();
-		}).rejects.toThrow();
+		expect(result).toEqual({ session });
 	});
 
-	test("beforeLoad redirects when no session", async () => {
+	test("beforeLoad redirects when session missing", async () => {
 		mocks.getAuthSessionFn.mockResolvedValue(null);
 		const opts = mocks.getOpts();
 		await expect(async () => {
-			await opts?.beforeLoad?.();
+			await opts?.beforeLoad?.({ location: { href: "/books" } });
 		}).rejects.toThrow();
+		expect(mocks.redirect).toHaveBeenCalledWith({
+			to: "/login",
+			search: { redirect: "/books" },
+		});
 	});
 });

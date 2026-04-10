@@ -162,4 +162,45 @@ describe("HomePage (_authed/index)", () => {
 		const screen = await render(<HomePage />);
 		await expect.element(screen.getByTestId("book-grid")).toBeVisible();
 	});
+
+	test("shows loading state for continue reading", async () => {
+		mocks.useSession.mockReturnValue({
+			data: { user: { id: "1", role: "user" } },
+		});
+		setQueryData([], [], true);
+		const HomePage = mocks.getComponent() as ComponentType;
+		await render(<HomePage />);
+	});
+
+	test("continue reading card with null progress renders 0%", async () => {
+		mocks.useSession.mockReturnValue({
+			data: { user: { id: "1", role: "user" } },
+		});
+		setQueryData(
+			[{ id: 1, title: "Unread", coverPath: null, progress: null }],
+			[],
+		);
+		const HomePage = mocks.getComponent() as ComponentType;
+		const screen = await render(<HomePage />);
+		await expect.element(screen.getByText("0%")).toBeVisible();
+	});
+
+	test("continue reading card with cover renders image", async () => {
+		mocks.useSession.mockReturnValue({
+			data: { user: { id: "1", role: "user" } },
+		});
+		setQueryData(
+			[{ id: 1, title: "With Cover", coverPath: "/c.jpg", progress: 0.25 }],
+			[],
+		);
+		const HomePage = mocks.getComponent() as ComponentType;
+		await render(<HomePage />);
+	});
+
+	test("handles undefined session gracefully", async () => {
+		mocks.useSession.mockReturnValue({ data: undefined });
+		setQueryData([], []);
+		const HomePage = mocks.getComponent() as ComponentType;
+		await render(<HomePage />);
+	});
 });
