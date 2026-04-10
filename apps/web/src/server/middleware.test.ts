@@ -100,7 +100,7 @@ describe("middleware", () => {
 
 			const result = await getAuthSessionFn();
 
-			expect(result!.user.role).toBe("user");
+			expect(result?.user.role).toBe("user");
 		});
 	});
 

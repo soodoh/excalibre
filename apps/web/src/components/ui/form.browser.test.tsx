@@ -1,6 +1,6 @@
 import { useForm } from "react-hook-form";
 import { describe, expect, test } from "vitest";
-import { page, userEvent } from "vitest/browser";
+import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 
 import {

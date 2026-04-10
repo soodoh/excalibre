@@ -69,7 +69,7 @@ describe("Sidebar", () => {
 
 		const sidebar = screen.container.querySelector('[data-slot="sidebar"]');
 		expect(sidebar).toBeTruthy();
-		expect(sidebar!.getAttribute("data-state")).toBe("expanded");
+		expect(sidebar?.getAttribute("data-state")).toBe("expanded");
 	});
 
 	test("renders with collapsed state when defaultOpen is false", async () => {
@@ -83,7 +83,7 @@ describe("Sidebar", () => {
 
 		const sidebar = screen.container.querySelector('[data-slot="sidebar"]');
 		expect(sidebar).toBeTruthy();
-		expect(sidebar!.getAttribute("data-state")).toBe("collapsed");
+		expect(sidebar?.getAttribute("data-state")).toBe("collapsed");
 	});
 
 	test("renders header and footer", async () => {
@@ -164,11 +164,11 @@ describe("Sidebar", () => {
 		);
 
 		const sidebar = screen.container.querySelector('[data-slot="sidebar"]');
-		expect(sidebar!.getAttribute("data-state")).toBe("expanded");
+		expect(sidebar?.getAttribute("data-state")).toBe("expanded");
 
 		await screen.getByRole("button", { name: "Toggle Sidebar" }).click();
 
-		expect(sidebar!.getAttribute("data-state")).toBe("collapsed");
+		expect(sidebar?.getAttribute("data-state")).toBe("collapsed");
 	});
 
 	test("renders separator", async () => {

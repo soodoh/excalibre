@@ -1,4 +1,4 @@
-import { createRef, type Ref } from "react";
+import { createRef } from "react";
 import type { ReaderSettings } from "src/hooks/use-reader-settings";
 import { describe, expect, test, vi } from "vitest";
 import { render } from "vitest-browser-react";
