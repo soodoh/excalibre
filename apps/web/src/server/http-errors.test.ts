@@ -90,8 +90,8 @@ describe("responseFromHttpError", () => {
 		const response = responseFromHttpError(error);
 
 		expect(response).toBeInstanceOf(Response);
-		expect(response!.status).toBe(401);
-		expect(await response!.text()).toBe("Unauthorized");
+		expect(response?.status).toBe(401);
+		expect(await response?.text()).toBe("Unauthorized");
 	});
 
 	test("returns a JSON Response when asJsonError is true", async () => {
@@ -99,8 +99,8 @@ describe("responseFromHttpError", () => {
 		const response = responseFromHttpError(error, { asJsonError: true });
 
 		expect(response).toBeInstanceOf(Response);
-		expect(response!.status).toBe(403);
-		expect(await response!.json()).toEqual({ error: "Admin only" });
+		expect(response?.status).toBe(403);
+		expect(await response?.json()).toEqual({ error: "Admin only" });
 	});
 
 	test("returns null for a non-HttpError", () => {
@@ -120,15 +120,15 @@ describe("responseFromHttpError", () => {
 		const error = new NotFoundError("Book not found");
 		const response = responseFromHttpError(error);
 
-		expect(response!.status).toBe(404);
-		expect(await response!.text()).toBe("Book not found");
+		expect(response?.status).toBe(404);
+		expect(await response?.text()).toBe("Book not found");
 	});
 
 	test("preserves status from base HttpError with custom status", async () => {
 		const error = new HttpError("Rate limited", 429);
 		const response = responseFromHttpError(error);
 
-		expect(response!.status).toBe(429);
-		expect(await response!.text()).toBe("Rate limited");
+		expect(response?.status).toBe(429);
+		expect(await response?.text()).toBe("Rate limited");
 	});
 });
