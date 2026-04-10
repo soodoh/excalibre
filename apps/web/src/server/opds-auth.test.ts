@@ -160,6 +160,69 @@ describe("authenticateOpds", () => {
 		expect(fetchMock).not.toHaveBeenCalled();
 	});
 
+	test("returns null when apikey is not found in either hash or plaintext lookup", async () => {
+		opdsApiKeyFindFirst.mockResolvedValueOnce(null).mockResolvedValueOnce(null);
+
+		const { authenticateOpds } = await import("src/server/opds");
+		const request = new Request(
+			"https://example.com/api/opds?apikey=unknown-key",
+		);
+
+		await expect(authenticateOpds(request)).resolves.toBeNull();
+		expect(opdsApiKeyFindFirst).toHaveBeenCalledTimes(2);
+	});
+
+	test("returns null for invalid base64 in Basic auth", async () => {
+		const { authenticateOpds } = await import("src/server/opds");
+		const request = new Request("https://example.com/api/opds", {
+			headers: {
+				Authorization: "Basic !!!invalid-base64!!!",
+			},
+		});
+
+		await expect(authenticateOpds(request)).resolves.toBeNull();
+	});
+
+	test("returns null when Basic auth has no colon separator", async () => {
+		const { authenticateOpds } = await import("src/server/opds");
+		const request = new Request("https://example.com/api/opds", {
+			headers: {
+				Authorization: `Basic ${btoa("nocolonhere")}`,
+			},
+		});
+
+		await expect(authenticateOpds(request)).resolves.toBeNull();
+	});
+
+	test("returns null when Basic auth has empty email", async () => {
+		const { authenticateOpds } = await import("src/server/opds");
+		const request = new Request("https://example.com/api/opds", {
+			headers: {
+				Authorization: `Basic ${btoa(":password")}`,
+			},
+		});
+
+		await expect(authenticateOpds(request)).resolves.toBeNull();
+	});
+
+	test("returns null when Basic auth has empty password", async () => {
+		const { authenticateOpds } = await import("src/server/opds");
+		const request = new Request("https://example.com/api/opds", {
+			headers: {
+				Authorization: `Basic ${btoa("user@example.com:")}`,
+			},
+		});
+
+		await expect(authenticateOpds(request)).resolves.toBeNull();
+	});
+
+	test("returns null when no auth credentials are provided at all", async () => {
+		const { authenticateOpds } = await import("src/server/opds");
+		const request = new Request("https://example.com/api/opds");
+
+		await expect(authenticateOpds(request)).resolves.toBeNull();
+	});
+
 	test("upgrades a legacy plaintext OPDS key to a hash after authenticating", async () => {
 		const setMock = vi.fn(() => ({
 			where: vi.fn(() => Promise.resolve()),

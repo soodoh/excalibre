@@ -31,8 +31,13 @@ vi.mock("node:crypto", async () => {
 vi.mock("@tanstack/react-start", () => ({
 	createServerFn: () => ({
 		handler: (handler: unknown) => handler,
-		inputValidator: () => ({
-			handler: (handler: unknown) => handler,
+		inputValidator: (validator: (raw: unknown) => unknown) => ({
+			handler: (handler: (ctx: { data: unknown }) => unknown) => {
+				return (ctx: { data: unknown }) => {
+					validator(ctx.data);
+					return handler(ctx);
+				};
+			},
 		}),
 	}),
 }));
@@ -181,6 +186,55 @@ describe("sync settings secret handling", () => {
 			apiKeyHash: sha256(rawApiKey),
 			apiKeyPreview: "fedc****************************",
 		});
+	});
+
+	test("deleteKoboTokenFn deletes a token scoped to the current user", async () => {
+		const deleteWhere = vi.fn(() => Promise.resolve());
+		dbDelete.mockReturnValueOnce({
+			where: deleteWhere,
+		});
+
+		const { deleteKoboTokenFn } = await import("src/server/sync-settings");
+
+		await expect(deleteKoboTokenFn({ data: { id: 7 } })).resolves.toEqual({
+			success: true,
+		});
+		expect(deleteWhere).toHaveBeenCalled();
+		expect(requireAuth).toHaveBeenCalled();
+	});
+
+	test("createKoboTokenFn defaults deviceName to null when not provided", async () => {
+		const rawToken = "aabbccddeeff00112233445566778899";
+		randomBytes.mockReturnValueOnce(Buffer.from(rawToken, "hex"));
+		const valuesSpy = vi.fn(() => ({
+			returning: () =>
+				Promise.resolve([
+					{
+						id: 10,
+						tokenPreview: "aabb****************************",
+						deviceName: null,
+						createdAt: new Date("2026-04-07T00:00:00.000Z"),
+					},
+				]),
+		}));
+		dbInsert.mockReturnValueOnce({
+			values: valuesSpy,
+		});
+
+		const { createKoboTokenFn } = await import("src/server/sync-settings");
+
+		await expect(createKoboTokenFn({ data: {} })).resolves.toEqual({
+			id: 10,
+			token: rawToken,
+			tokenPreview: "aabb****************************",
+			deviceName: null,
+			createdAt: new Date("2026-04-07T00:00:00.000Z"),
+		});
+		expect(valuesSpy).toHaveBeenCalledWith(
+			expect.objectContaining({
+				deviceName: null,
+			}),
+		);
 	});
 
 	test("regenerateOpdsKeyFn rotates the stored hash and returns the new raw key once", async () => {

@@ -28,8 +28,13 @@ const shelvesFindFirst = vi.fn();
 vi.mock("@tanstack/react-start", () => ({
 	createServerFn: () => ({
 		handler: (handler: unknown) => handler,
-		inputValidator: () => ({
-			handler: (handler: unknown) => handler,
+		inputValidator: (validator: (raw: unknown) => unknown) => ({
+			handler: (handler: (ctx: { data: unknown }) => unknown) => {
+				return (ctx: { data: unknown }) => {
+					validator(ctx.data);
+					return handler(ctx);
+				};
+			},
 		}),
 	}),
 }));
@@ -963,6 +968,66 @@ describe("shelves server functions", () => {
 			await getShelfBooksFn({ data: { shelfId: 1 } });
 
 			// Query should still be executed (with just library filter)
+			expect(dbSelectWhereMock).toHaveBeenCalled();
+		});
+
+		test("returns undefined for unsupported language op", async () => {
+			requireAuth.mockResolvedValueOnce(mockSession);
+			shelvesFindFirst.mockResolvedValueOnce({
+				id: 1,
+				userId: "user-1",
+				type: "smart",
+				filterRules: {
+					operator: "and",
+					conditions: [{ field: "language", op: "startsWith", value: "en" }],
+				},
+			});
+			getAccessibleLibraryIds.mockResolvedValueOnce([1]);
+			dbSelectWhereMock.mockResolvedValueOnce([]);
+
+			const { getShelfBooksFn } = await import("src/server/shelves");
+			await getShelfBooksFn({ data: { shelfId: 1 } });
+
+			expect(dbSelectWhereMock).toHaveBeenCalled();
+		});
+
+		test("returns undefined for unsupported publisher op", async () => {
+			requireAuth.mockResolvedValueOnce(mockSession);
+			shelvesFindFirst.mockResolvedValueOnce({
+				id: 1,
+				userId: "user-1",
+				type: "smart",
+				filterRules: {
+					operator: "and",
+					conditions: [{ field: "publisher", op: "greaterThan", value: 5 }],
+				},
+			});
+			getAccessibleLibraryIds.mockResolvedValueOnce([1]);
+			dbSelectWhereMock.mockResolvedValueOnce([]);
+
+			const { getShelfBooksFn } = await import("src/server/shelves");
+			await getShelfBooksFn({ data: { shelfId: 1 } });
+
+			expect(dbSelectWhereMock).toHaveBeenCalled();
+		});
+
+		test("returns undefined for unsupported rating op", async () => {
+			requireAuth.mockResolvedValueOnce(mockSession);
+			shelvesFindFirst.mockResolvedValueOnce({
+				id: 1,
+				userId: "user-1",
+				type: "smart",
+				filterRules: {
+					operator: "and",
+					conditions: [{ field: "rating", op: "contains", value: "high" }],
+				},
+			});
+			getAccessibleLibraryIds.mockResolvedValueOnce([1]);
+			dbSelectWhereMock.mockResolvedValueOnce([]);
+
+			const { getShelfBooksFn } = await import("src/server/shelves");
+			await getShelfBooksFn({ data: { shelfId: 1 } });
+
 			expect(dbSelectWhereMock).toHaveBeenCalled();
 		});
 

@@ -64,4 +64,37 @@ describe("authenticateKobo", () => {
 			tokenPreview: "lega********",
 		});
 	});
+
+	test("returns null when both hash and plaintext lookups fail", async () => {
+		koboTokensFindFirst.mockResolvedValueOnce(null).mockResolvedValueOnce(null);
+
+		const { authenticateKobo } = await import("src/server/kobo");
+
+		await expect(authenticateKobo("unknown-token")).resolves.toBeNull();
+		expect(koboTokensFindFirst).toHaveBeenCalledTimes(2);
+	});
+
+	test("upgrades legacy token with existing tokenPreview", async () => {
+		const setMock = vi.fn(() => ({
+			where: vi.fn(() => Promise.resolve()),
+		}));
+		dbUpdate.mockReturnValue({
+			set: setMock,
+		});
+		koboTokensFindFirst.mockResolvedValueOnce(null).mockResolvedValueOnce({
+			id: 10,
+			userId: "user-1",
+			tokenPreview: "existing-preview",
+		});
+
+		const { authenticateKobo } = await import("src/server/kobo");
+
+		await expect(authenticateKobo("legacy-tok")).resolves.toEqual({
+			userId: "user-1",
+		});
+		expect(setMock).toHaveBeenCalledWith({
+			tokenHash: createHash("sha256").update("legacy-tok").digest("hex"),
+			tokenPreview: "existing-preview",
+		});
+	});
 });

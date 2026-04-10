@@ -1,6 +1,9 @@
 import fs from "node:fs";
 import { createLibrarySchema } from "src/lib/validators";
-import { resolveLibraryScanPath } from "src/server/path-safety";
+import {
+	isValidLibraryScanPath,
+	resolveLibraryScanPath,
+} from "src/server/path-safety";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
 const librariesFindFirst = vi.fn();
@@ -53,6 +56,42 @@ describe("resolveLibraryScanPath", () => {
 		expect(resolveLibraryScanPath("data", "books/fiction")).toBe(
 			"data/books/fiction",
 		);
+	});
+});
+
+describe("isValidLibraryScanPath", () => {
+	test("returns true for valid relative paths", () => {
+		expect(isValidLibraryScanPath("books/fiction")).toBe(true);
+		expect(isValidLibraryScanPath("library")).toBe(true);
+	});
+
+	test("returns false for absolute paths", () => {
+		expect(isValidLibraryScanPath("/etc")).toBe(false);
+		expect(isValidLibraryScanPath("C:\\private")).toBe(false);
+		expect(isValidLibraryScanPath("\\\\server\\share")).toBe(false);
+	});
+
+	test("returns false for parent traversal", () => {
+		expect(isValidLibraryScanPath("../private")).toBe(false);
+	});
+
+	test("returns true for empty segments and dots", () => {
+		expect(isValidLibraryScanPath("books/./fiction")).toBe(true);
+		expect(isValidLibraryScanPath("books//fiction")).toBe(true);
+	});
+});
+
+describe("resolveLibraryScanPath edge cases", () => {
+	test("handles .. after valid segments (pops back)", () => {
+		expect(resolveLibraryScanPath("data", "a/b/../c")).toBe("data/a/c");
+	});
+
+	test("handles consecutive slashes and dots in path", () => {
+		expect(resolveLibraryScanPath("data", "a/./b")).toBe("data/a/b");
+	});
+
+	test("handles empty scan path", () => {
+		expect(resolveLibraryScanPath("data", "")).toBe("data");
 	});
 });
 

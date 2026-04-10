@@ -33,6 +33,15 @@ describe("buildRequestAuthQuery", () => {
 			}),
 		).toBe("?koboToken=kobo-secret");
 	});
+
+	test("returns no query suffix for OPDS requests without an api key", () => {
+		expect(
+			buildRequestAuthQuery({
+				mode: "opds",
+				userId: "user-1",
+			}),
+		).toBe("");
+	});
 });
 
 describe("appendRequestAuthToUrl", () => {
@@ -67,5 +76,14 @@ describe("appendRequestAuthToUrl", () => {
 				},
 			),
 		).toBe("https://example.com/api/opds/libraries/9?page=3&apikey=feed-key");
+	});
+
+	test("returns unmodified URL for session auth", () => {
+		expect(
+			appendRequestAuthToUrl("https://example.com/api/covers/42", {
+				mode: "session",
+				userId: "user-1",
+			}),
+		).toBe("https://example.com/api/covers/42");
 	});
 });

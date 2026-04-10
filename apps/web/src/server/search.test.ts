@@ -14,8 +14,13 @@ const dbSelectGroupByMock = vi.fn();
 vi.mock("@tanstack/react-start", () => ({
 	createServerFn: () => ({
 		handler: (handler: unknown) => handler,
-		inputValidator: () => ({
-			handler: (handler: unknown) => handler,
+		inputValidator: (validator: (raw: unknown) => unknown) => ({
+			handler: (handler: (ctx: { data: unknown }) => unknown) => {
+				return (ctx: { data: unknown }) => {
+					validator(ctx.data);
+					return handler(ctx);
+				};
+			},
 		}),
 	}),
 }));

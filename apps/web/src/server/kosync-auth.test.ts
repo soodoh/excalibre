@@ -218,6 +218,85 @@ describe("authenticateKosync", () => {
 	});
 });
 
+describe("authenticateKosync missing headers", () => {
+	beforeEach(() => {
+		vi.resetAllMocks();
+		vi.stubGlobal("fetch", fetchMock);
+		selectMock.mockReturnValue(selectChain);
+		fromMock.mockReturnValue(selectChain);
+		leftJoinMock.mockReturnValue(selectChain);
+		whereMock.mockReturnValue(selectChain);
+	});
+
+	test("returns null when x-auth-user header is missing", async () => {
+		const { authenticateKosync } = await import("src/server/kosync");
+		const request = new Request("https://example.com/api/kosync/users/auth", {
+			headers: {
+				"x-auth-key": "some-password",
+			},
+		});
+
+		await expect(authenticateKosync(request)).resolves.toBeNull();
+		expect(selectMock).not.toHaveBeenCalled();
+	});
+
+	test("returns null when x-auth-key header is missing", async () => {
+		const { authenticateKosync } = await import("src/server/kosync");
+		const request = new Request("https://example.com/api/kosync/users/auth", {
+			headers: {
+				"x-auth-user": "reader@example.com",
+			},
+		});
+
+		await expect(authenticateKosync(request)).resolves.toBeNull();
+		expect(selectMock).not.toHaveBeenCalled();
+	});
+
+	test("returns null when both headers are missing", async () => {
+		const { authenticateKosync } = await import("src/server/kosync");
+		const request = new Request("https://example.com/api/kosync/users/auth");
+
+		await expect(authenticateKosync(request)).resolves.toBeNull();
+	});
+});
+
+describe("findBookByMd5", () => {
+	const bookFilesFindFirst = vi.fn();
+
+	beforeEach(async () => {
+		vi.resetAllMocks();
+		// Re-mock db to include bookFiles query
+		const mod = await import("src/db");
+		const db = vi.mocked(mod).db as unknown as Record<
+			string,
+			Record<string, Record<string, unknown>>
+		>;
+		if (!db.query.bookFiles) {
+			db.query.bookFiles = {};
+		}
+		db.query.bookFiles.findFirst = bookFilesFindFirst;
+	});
+
+	test("returns book file when MD5 matches", async () => {
+		const mockFile = { id: 10, bookId: 1, md5Hash: "abc123" };
+		bookFilesFindFirst.mockResolvedValueOnce(mockFile);
+
+		const { findBookByMd5 } = await import("src/server/kosync");
+		const result = await findBookByMd5("abc123");
+
+		expect(result).toEqual(mockFile);
+	});
+
+	test("returns null when no match found", async () => {
+		bookFilesFindFirst.mockResolvedValueOnce(undefined);
+
+		const { findBookByMd5 } = await import("src/server/kosync");
+		const result = await findBookByMd5("nonexistent");
+
+		expect(result).toBeNull();
+	});
+});
+
 describe("/api/kosync/users/create", () => {
 	beforeEach(() => {
 		vi.resetAllMocks();

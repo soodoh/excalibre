@@ -424,4 +424,314 @@ describe("Format dispatcher", () => {
 
 		expect(result.metadata.title).toBe("Dispatched PDF");
 	});
+
+	test("extractMetadata dispatches CBR to CBZ extractor", async () => {
+		const dir = await setupTempDir();
+		const fakeImage = Buffer.from([
+			0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46,
+		]);
+		const cbzBuf = buildCbz({
+			images: [{ name: "page01.jpg", data: fakeImage }],
+		});
+		const filePath = path.join(dir, "comic.cbr");
+		await writeFile(filePath, cbzBuf);
+
+		const result = await extractMetadata(filePath);
+
+		expect(result.metadata.title).toBe("comic");
+	});
+
+	test("extractMetadata dispatches CB7 to CBZ extractor", async () => {
+		const dir = await setupTempDir();
+		const fakeImage = Buffer.from([
+			0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46,
+		]);
+		const cbzBuf = buildCbz({
+			images: [{ name: "page01.jpg", data: fakeImage }],
+		});
+		const filePath = path.join(dir, "comic.cb7");
+		await writeFile(filePath, cbzBuf);
+
+		const result = await extractMetadata(filePath);
+
+		expect(result.metadata.title).toBe("comic");
+	});
+});
+
+// ---------------------------------------------------------------------------
+// EPUB edge-case branch coverage
+// ---------------------------------------------------------------------------
+
+describe("EPUB extractor edge cases", () => {
+	afterEach(cleanupTempDir);
+
+	test("handles OPF with calibre series metadata", async () => {
+		const dir = await setupTempDir();
+		const zip = new AdmZip();
+		zip.addFile("mimetype", Buffer.from("application/epub+zip"));
+		zip.addFile(
+			"META-INF/container.xml",
+			Buffer.from(`<?xml version="1.0"?>
+<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
+  <rootfiles>
+    <rootfile full-path="content.opf" media-type="application/oebps-package+xml"/>
+  </rootfiles>
+</container>`),
+		);
+		zip.addFile(
+			"content.opf",
+			Buffer.from(`<?xml version="1.0"?>
+<package xmlns="http://www.idpf.org/2007/opf" version="2.0">
+  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+    <dc:title>Series Book</dc:title>
+    <dc:creator>Author X</dc:creator>
+    <dc:language>en</dc:language>
+    <dc:publisher>My Publisher</dc:publisher>
+    <dc:date>2025-01-15</dc:date>
+    <dc:subject>Fantasy</dc:subject>
+    <dc:subject>Adventure</dc:subject>
+    <dc:identifier opf:scheme="ISBN">978-1234567890</dc:identifier>
+    <meta name="calibre:series" content="My Series"/>
+    <meta name="calibre:series_index" content="3.5"/>
+    <meta name="cover" content="cover-img"/>
+  </metadata>
+  <manifest>
+    <item id="cover-img" href="cover.png" media-type="image/png"/>
+  </manifest>
+</package>`),
+		);
+		// Add a cover image
+		zip.addFile("cover.png", Buffer.from([0x89, 0x50, 0x4e, 0x47]));
+
+		const filePath = path.join(dir, "series.epub");
+		await writeFile(filePath, zip.toBuffer());
+
+		const result = extractEpub(filePath);
+
+		expect(result.metadata.title).toBe("Series Book");
+		expect(result.metadata.authors).toContain("Author X");
+		expect(result.metadata.publisher).toBe("My Publisher");
+		expect(result.metadata.publishDate).toBe("2025-01-15");
+		expect(result.metadata.tags).toEqual(["Fantasy", "Adventure"]);
+		expect(result.metadata.isbn).toBe("978-1234567890");
+		expect(result.metadata.series).toBe("My Series");
+		expect(result.metadata.seriesIndex).toBe(3.5);
+		expect(result.cover).toBeDefined();
+		expect(result.cover?.mimeType).toBe("image/png");
+		expect(result.cover?.extension).toBe("png");
+	});
+
+	test("returns UNKNOWN_RESULT when no OPF path found", async () => {
+		const dir = await setupTempDir();
+		const zip = new AdmZip();
+		zip.addFile("mimetype", Buffer.from("application/epub+zip"));
+		// No container.xml
+		const filePath = path.join(dir, "no-opf.epub");
+		await writeFile(filePath, zip.toBuffer());
+
+		const result = extractEpub(filePath);
+
+		expect(result.metadata.title).toBe("Unknown");
+		expect(result.metadata.authors).toContain("Unknown");
+	});
+
+	test("returns UNKNOWN_RESULT when OPF entry not found in ZIP", async () => {
+		const dir = await setupTempDir();
+		const zip = new AdmZip();
+		zip.addFile("mimetype", Buffer.from("application/epub+zip"));
+		zip.addFile(
+			"META-INF/container.xml",
+			Buffer.from(`<?xml version="1.0"?>
+<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
+  <rootfiles>
+    <rootfile full-path="nonexistent.opf" media-type="application/oebps-package+xml"/>
+  </rootfiles>
+</container>`),
+		);
+		const filePath = path.join(dir, "missing-opf.epub");
+		await writeFile(filePath, zip.toBuffer());
+
+		const result = extractEpub(filePath);
+
+		expect(result.metadata.title).toBe("Unknown");
+	});
+
+	test("finds cover by common filename when not in manifest", async () => {
+		const dir = await setupTempDir();
+		const zip = new AdmZip();
+		zip.addFile("mimetype", Buffer.from("application/epub+zip"));
+		zip.addFile(
+			"META-INF/container.xml",
+			Buffer.from(`<?xml version="1.0"?>
+<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
+  <rootfiles>
+    <rootfile full-path="content.opf" media-type="application/oebps-package+xml"/>
+  </rootfiles>
+</container>`),
+		);
+		zip.addFile(
+			"content.opf",
+			Buffer.from(`<?xml version="1.0"?>
+<package xmlns="http://www.idpf.org/2007/opf">
+  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+    <dc:title>Common Cover</dc:title>
+  </metadata>
+  <manifest></manifest>
+</package>`),
+		);
+		// cover.jpg at a common location
+		zip.addFile("cover.jpg", Buffer.from([0xff, 0xd8, 0xff, 0xe0]));
+
+		const filePath = path.join(dir, "common-cover.epub");
+		await writeFile(filePath, zip.toBuffer());
+
+		const result = extractEpub(filePath);
+
+		expect(result.metadata.title).toBe("Common Cover");
+		expect(result.cover).toBeDefined();
+		expect(result.cover?.extension).toBe("jpg");
+	});
+
+	test("handles description in metadata", async () => {
+		const dir = await setupTempDir();
+		const epubBuf = buildEpub({
+			title: "Desc Book",
+			author: "Auth",
+			description: "A great story",
+		});
+		const filePath = path.join(dir, "desc.epub");
+		await writeFile(filePath, epubBuf);
+
+		const result = extractEpub(filePath);
+
+		expect(result.metadata.description).toBe("A great story");
+	});
+
+	test("handles rootfile as array in container.xml", async () => {
+		const dir = await setupTempDir();
+		const zip = new AdmZip();
+		zip.addFile("mimetype", Buffer.from("application/epub+zip"));
+		zip.addFile(
+			"META-INF/container.xml",
+			Buffer.from(`<?xml version="1.0"?>
+<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
+  <rootfiles>
+    <rootfile full-path="content.opf" media-type="application/oebps-package+xml"/>
+    <rootfile full-path="alt.opf" media-type="application/oebps-package+xml"/>
+  </rootfiles>
+</container>`),
+		);
+		zip.addFile(
+			"content.opf",
+			Buffer.from(`<?xml version="1.0"?>
+<package xmlns="http://www.idpf.org/2007/opf">
+  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+    <dc:title>Array Rootfile</dc:title>
+  </metadata>
+  <manifest></manifest>
+</package>`),
+		);
+
+		const filePath = path.join(dir, "multi-rootfile.epub");
+		await writeFile(filePath, zip.toBuffer());
+
+		const result = extractEpub(filePath);
+
+		expect(result.metadata.title).toBe("Array Rootfile");
+	});
+});
+
+// ---------------------------------------------------------------------------
+// CBZ edge-case branch coverage
+// ---------------------------------------------------------------------------
+
+describe("CBZ extractor edge cases", () => {
+	afterEach(cleanupTempDir);
+
+	test("handles ComicInfo.xml with month and day in publish date", async () => {
+		const dir = await setupTempDir();
+		const comicInfo = `<?xml version="1.0"?>
+<ComicInfo>
+  <Title>Dated Comic</Title>
+  <Year>2025</Year>
+  <Month>3</Month>
+  <Day>15</Day>
+</ComicInfo>`;
+		const fakeImage = Buffer.from([0x89, 0x50, 0x4e, 0x47]);
+		const cbzBuf = buildCbz({
+			comicInfo,
+			images: [{ name: "001.png", data: fakeImage }],
+		});
+		const filePath = path.join(dir, "dated.cbz");
+		await writeFile(filePath, cbzBuf);
+
+		const result = extractCbz(filePath);
+
+		expect(result.metadata.publishDate).toBe("2025-03-15");
+		expect(result.cover?.mimeType).toBe("image/png");
+	});
+
+	test("handles ComicInfo.xml with only month (no day)", async () => {
+		const dir = await setupTempDir();
+		const comicInfo = `<?xml version="1.0"?>
+<ComicInfo>
+  <Title>Month Only</Title>
+  <Year>2025</Year>
+  <Month>7</Month>
+</ComicInfo>`;
+		const cbzBuf = buildCbz({ comicInfo });
+		const filePath = path.join(dir, "month.cbz");
+		await writeFile(filePath, cbzBuf);
+
+		const result = extractCbz(filePath);
+
+		expect(result.metadata.publishDate).toBe("2025-07");
+	});
+
+	test("handles numeric title in ComicInfo.xml", async () => {
+		const dir = await setupTempDir();
+		const comicInfo = `<?xml version="1.0"?>
+<ComicInfo>
+  <Title>42</Title>
+  <Number>not-a-number</Number>
+  <PageCount>0</PageCount>
+</ComicInfo>`;
+		const cbzBuf = buildCbz({ comicInfo });
+		const filePath = path.join(dir, "numeric.cbz");
+		await writeFile(filePath, cbzBuf);
+
+		const result = extractCbz(filePath);
+
+		expect(result.metadata.title).toBe("42");
+		expect(result.metadata.seriesIndex).toBeUndefined();
+		expect(result.metadata.pageCount).toBeUndefined();
+	});
+
+	test("handles empty CBZ with no images or ComicInfo", async () => {
+		const dir = await setupTempDir();
+		const cbzBuf = buildCbz({});
+		const filePath = path.join(dir, "empty.cbz");
+		await writeFile(filePath, cbzBuf);
+
+		const result = extractCbz(filePath);
+
+		expect(result.metadata.title).toBe("empty");
+		expect(result.metadata.authors).toContain("Unknown");
+		expect(result.cover).toBeUndefined();
+	});
+
+	test("handles ComicInfo with tag equals op for tag name", async () => {
+		const dir = await setupTempDir();
+		const comicInfo = `<?xml version="1.0"?>
+<ComicInfo>
+  <Writer>Writer1, Writer2</Writer>
+</ComicInfo>`;
+		const cbzBuf = buildCbz({ comicInfo });
+		const filePath = path.join(dir, "multiwriter.cbz");
+		await writeFile(filePath, cbzBuf);
+
+		const result = extractCbz(filePath);
+
+		expect(result.metadata.authors).toEqual(["Writer1", "Writer2"]);
+	});
 });
