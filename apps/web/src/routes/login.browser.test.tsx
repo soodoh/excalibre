@@ -1,0 +1,145 @@
+import { describe, expect, test, vi } from "vitest";
+import { render } from "vitest-browser-react";
+
+const mocks = vi.hoisted(() => {
+	let captured: unknown = null;
+	return {
+		signIn: { email: vi.fn() },
+		navigate: vi.fn(),
+		toastError: vi.fn(),
+		setComponent: (c: unknown) => {
+			captured = c;
+		},
+		getComponent: () => captured,
+	};
+});
+
+vi.mock("@tanstack/react-start", () => ({
+	createServerFn: () => ({
+		handler: (fn: unknown) => fn,
+		inputValidator: () => ({ handler: (fn: unknown) => fn }),
+	}),
+}));
+
+vi.mock("@tanstack/react-router", () => ({
+	createFileRoute: () => (opts: { component: unknown }) => {
+		mocks.setComponent(opts.component);
+		return { component: opts.component };
+	},
+	Link: ({
+		children,
+		to,
+		...rest
+	}: {
+		children: React.ReactNode;
+		to?: string;
+		[k: string]: unknown;
+	}) => (
+		<a href={to} {...rest}>
+			{children}
+		</a>
+	),
+	useNavigate: () => mocks.navigate,
+}));
+
+vi.mock("src/lib/auth-client", () => ({
+	signIn: mocks.signIn,
+}));
+
+vi.mock("sonner", () => ({
+	toast: {
+		error: mocks.toastError,
+		success: vi.fn(),
+	},
+}));
+
+// Import the route file to capture the component
+import "./login";
+
+type ComponentType = () => React.JSX.Element;
+
+describe("LoginPage", () => {
+	test("renders the login card title", async () => {
+		const LoginPage = mocks.getComponent() as ComponentType;
+		const screen = await render(<LoginPage />);
+		await expect.element(screen.getByText("Excalibre")).toBeVisible();
+	});
+
+	test("renders sign in description", async () => {
+		const LoginPage = mocks.getComponent() as ComponentType;
+		const screen = await render(<LoginPage />);
+		await expect
+			.element(screen.getByText("Sign in to your account"))
+			.toBeVisible();
+	});
+
+	test("renders email and password inputs", async () => {
+		const LoginPage = mocks.getComponent() as ComponentType;
+		const screen = await render(<LoginPage />);
+		await expect.element(screen.getByLabelText("Email")).toBeVisible();
+		await expect.element(screen.getByLabelText("Password")).toBeVisible();
+	});
+
+	test("renders sign in button", async () => {
+		const LoginPage = mocks.getComponent() as ComponentType;
+		const screen = await render(<LoginPage />);
+		await expect
+			.element(screen.getByRole("button", { name: "Sign In" }))
+			.toBeVisible();
+	});
+
+	test("renders register link", async () => {
+		const LoginPage = mocks.getComponent() as ComponentType;
+		const screen = await render(<LoginPage />);
+		await expect
+			.element(screen.getByRole("link", { name: "Register" }))
+			.toBeVisible();
+	});
+
+	test("successful sign-in navigates to home", async () => {
+		mocks.signIn.email.mockResolvedValue({ error: null });
+		const LoginPage = mocks.getComponent() as ComponentType;
+		const screen = await render(<LoginPage />);
+		await screen.getByLabelText("Email").fill("a@b.com");
+		await screen.getByLabelText("Password").fill("password123");
+		await screen.getByRole("button", { name: "Sign In" }).click();
+		// Wait for async handler
+		await new Promise((r) => setTimeout(r, 50));
+		expect(mocks.navigate).toHaveBeenCalledWith({ to: "/" });
+	});
+
+	test("sign-in error shows toast", async () => {
+		mocks.signIn.email.mockResolvedValue({
+			error: { message: "Invalid credentials" },
+		});
+		const LoginPage = mocks.getComponent() as ComponentType;
+		const screen = await render(<LoginPage />);
+		await screen.getByLabelText("Email").fill("a@b.com");
+		await screen.getByLabelText("Password").fill("wrong");
+		await screen.getByRole("button", { name: "Sign In" }).click();
+		await new Promise((r) => setTimeout(r, 50));
+		expect(mocks.toastError).toHaveBeenCalled();
+	});
+
+	test("sign-in error without message uses default", async () => {
+		mocks.signIn.email.mockResolvedValue({ error: {} });
+		const LoginPage = mocks.getComponent() as ComponentType;
+		const screen = await render(<LoginPage />);
+		await screen.getByLabelText("Email").fill("a@b.com");
+		await screen.getByLabelText("Password").fill("wrong");
+		await screen.getByRole("button", { name: "Sign In" }).click();
+		await new Promise((r) => setTimeout(r, 50));
+		expect(mocks.toastError).toHaveBeenCalled();
+	});
+
+	test("sign-in thrown exception shows toast", async () => {
+		mocks.signIn.email.mockRejectedValue(new Error("Network error"));
+		const LoginPage = mocks.getComponent() as ComponentType;
+		const screen = await render(<LoginPage />);
+		await screen.getByLabelText("Email").fill("a@b.com");
+		await screen.getByLabelText("Password").fill("pwd");
+		await screen.getByRole("button", { name: "Sign In" }).click();
+		await new Promise((r) => setTimeout(r, 50));
+		expect(mocks.toastError).toHaveBeenCalled();
+	});
+});
