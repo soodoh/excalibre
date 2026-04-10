@@ -1,10 +1,23 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
 // --- Mock setup ---
-const bookFilesFindFirst = vi.fn();
-const dbInsertMock = vi.fn();
-const dbInsertValuesMock = vi.fn();
-const dbInsertReturningMock = vi.fn();
+const {
+	bookFilesFindFirst,
+	dbInsertMock,
+	dbInsertValuesMock,
+	dbInsertReturningMock,
+	mockGetEntries,
+	mockUpdateFile,
+	mockWriteZip,
+} = vi.hoisted(() => ({
+	bookFilesFindFirst: vi.fn(),
+	dbInsertMock: vi.fn(),
+	dbInsertValuesMock: vi.fn(),
+	dbInsertReturningMock: vi.fn(),
+	mockGetEntries: vi.fn(),
+	mockUpdateFile: vi.fn(),
+	mockWriteZip: vi.fn(),
+}));
 
 vi.mock("drizzle-orm", () => ({
 	eq: vi.fn((field: unknown, value: unknown) => ({ field, value })),
@@ -22,10 +35,6 @@ vi.mock("src/db", () => ({
 vi.mock("src/db/schema", () => ({
 	bookFiles: { id: "bookFiles.id" },
 }));
-
-const mockGetEntries = vi.fn();
-const mockUpdateFile = vi.fn();
-const mockWriteZip = vi.fn();
 
 vi.mock("adm-zip", () => {
 	const MockAdmZip = vi.fn(function (this: Record<string, unknown>) {
@@ -51,9 +60,11 @@ vi.mock("node:path", async () => {
 	};
 });
 
+import { fixEpub } from "./epub-fixer";
+
 describe("epub-fixer", () => {
 	beforeEach(() => {
-		vi.clearAllMocks();
+		vi.resetAllMocks();
 
 		dbInsertMock.mockReturnValue({ values: dbInsertValuesMock });
 		dbInsertValuesMock.mockReturnValue({ returning: dbInsertReturningMock });
@@ -62,8 +73,6 @@ describe("epub-fixer", () => {
 	describe("fixEpub", () => {
 		test("throws when bookFile not found", async () => {
 			bookFilesFindFirst.mockResolvedValueOnce(undefined);
-
-			const { fixEpub } = await import("src/server/epub-fixer");
 
 			await expect(fixEpub(999)).rejects.toThrow("BookFile 999 not found");
 		});
@@ -75,8 +84,6 @@ describe("epub-fixer", () => {
 				filePath: "/books/test.pdf",
 				bookId: 10,
 			});
-
-			const { fixEpub } = await import("src/server/epub-fixer");
 
 			await expect(fixEpub(1)).rejects.toThrow(
 				"BookFile 1 is not an EPUB (format: pdf)",
@@ -102,8 +109,6 @@ describe("epub-fixer", () => {
 				},
 			]);
 
-			const { fixEpub } = await import("src/server/epub-fixer");
-
 			const result = await fixEpub(1);
 
 			expect(result).toBeNull();
@@ -122,8 +127,6 @@ describe("epub-fixer", () => {
 			mockGetEntries.mockReturnValue([
 				{ isDirectory: true, entryName: "META-INF/" },
 			]);
-
-			const { fixEpub } = await import("src/server/epub-fixer");
 
 			const result = await fixEpub(1);
 
@@ -150,8 +153,6 @@ describe("epub-fixer", () => {
 					getData: () => Buffer.from("PNG data"),
 				},
 			]);
-
-			const { fixEpub } = await import("src/server/epub-fixer");
 
 			const result = await fixEpub(1);
 
@@ -186,8 +187,6 @@ describe("epub-fixer", () => {
 			};
 			dbInsertReturningMock.mockResolvedValueOnce([newRecord]);
 
-			const { fixEpub } = await import("src/server/epub-fixer");
-
 			const result = await fixEpub(1);
 
 			expect(mockUpdateFile).toHaveBeenCalledWith(
@@ -221,8 +220,6 @@ describe("epub-fixer", () => {
 			const newRecord = { id: 2 };
 			dbInsertReturningMock.mockResolvedValueOnce([newRecord]);
 
-			const { fixEpub } = await import("src/server/epub-fixer");
-
 			const result = await fixEpub(1);
 
 			// Null byte was stripped, so content changed
@@ -253,8 +250,6 @@ describe("epub-fixer", () => {
 
 			const newRecord = { id: 3 };
 			dbInsertReturningMock.mockResolvedValueOnce([newRecord]);
-
-			const { fixEpub } = await import("src/server/epub-fixer");
 
 			const result = await fixEpub(1);
 

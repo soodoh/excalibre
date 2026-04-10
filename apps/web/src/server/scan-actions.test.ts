@@ -1,9 +1,11 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
 // --- Mock setup ---
-const requireAdmin = vi.fn();
-const scanLibrary = vi.fn();
-const scanAllLibraries = vi.fn();
+const { requireAdmin, scanLibrary, scanAllLibraries } = vi.hoisted(() => ({
+	requireAdmin: vi.fn(),
+	scanLibrary: vi.fn(),
+	scanAllLibraries: vi.fn(),
+}));
 
 vi.mock("@tanstack/react-start", () => ({
 	createServerFn: () => ({
@@ -28,17 +30,17 @@ vi.mock("zod", async () => {
 	return actual;
 });
 
+import { triggerScanAllFn, triggerScanFn } from "./scan-actions";
+
 describe("scan-actions", () => {
 	beforeEach(() => {
-		vi.clearAllMocks();
+		vi.resetAllMocks();
 	});
 
 	describe("triggerScanFn", () => {
 		test("calls requireAdmin before scanning", async () => {
 			requireAdmin.mockResolvedValueOnce(undefined);
 			scanLibrary.mockResolvedValueOnce({ scanned: 5 });
-
-			const { triggerScanFn } = await import("src/server/scan-actions");
 
 			await triggerScanFn({ data: { libraryId: 1 } });
 
@@ -49,8 +51,6 @@ describe("scan-actions", () => {
 			requireAdmin.mockResolvedValueOnce(undefined);
 			scanLibrary.mockResolvedValueOnce({ scanned: 5 });
 
-			const { triggerScanFn } = await import("src/server/scan-actions");
-
 			const result = await triggerScanFn({ data: { libraryId: 42 } });
 
 			expect(scanLibrary).toHaveBeenCalledWith(42);
@@ -59,8 +59,6 @@ describe("scan-actions", () => {
 
 		test("propagates error from requireAdmin", async () => {
 			requireAdmin.mockRejectedValueOnce(new Error("Forbidden"));
-
-			const { triggerScanFn } = await import("src/server/scan-actions");
 
 			await expect(triggerScanFn({ data: { libraryId: 1 } })).rejects.toThrow(
 				"Forbidden",
@@ -75,8 +73,6 @@ describe("scan-actions", () => {
 			requireAdmin.mockResolvedValueOnce(undefined);
 			scanAllLibraries.mockResolvedValueOnce(undefined);
 
-			const { triggerScanAllFn } = await import("src/server/scan-actions");
-
 			await triggerScanAllFn({});
 
 			expect(requireAdmin).toHaveBeenCalled();
@@ -86,8 +82,6 @@ describe("scan-actions", () => {
 			requireAdmin.mockResolvedValueOnce(undefined);
 			scanAllLibraries.mockResolvedValueOnce({ total: 10 });
 
-			const { triggerScanAllFn } = await import("src/server/scan-actions");
-
 			const result = await triggerScanAllFn({});
 
 			expect(scanAllLibraries).toHaveBeenCalled();
@@ -96,8 +90,6 @@ describe("scan-actions", () => {
 
 		test("propagates error from requireAdmin", async () => {
 			requireAdmin.mockRejectedValueOnce(new Error("Not an admin"));
-
-			const { triggerScanAllFn } = await import("src/server/scan-actions");
 
 			await expect(triggerScanAllFn({})).rejects.toThrow("Not an admin");
 

@@ -1,11 +1,13 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 // --- Mock setup ---
-const dbSelectMock = vi.fn();
-const dbSelectFromMock = vi.fn();
-
-const scanLibrary = vi.fn();
-const ensureJobWorkerStarted = vi.fn();
+const { dbSelectMock, dbSelectFromMock, scanLibrary, ensureJobWorkerStarted } =
+	vi.hoisted(() => ({
+		dbSelectMock: vi.fn(),
+		dbSelectFromMock: vi.fn(),
+		scanLibrary: vi.fn(),
+		ensureJobWorkerStarted: vi.fn(),
+	}));
 
 vi.mock("src/db", () => ({
 	db: {
@@ -28,7 +30,7 @@ vi.mock("src/server/job-worker", () => ({
 describe("scheduler", () => {
 	beforeEach(() => {
 		vi.useFakeTimers();
-		vi.clearAllMocks();
+		vi.resetAllMocks();
 
 		dbSelectMock.mockReturnValue({ from: dbSelectFromMock });
 	});
@@ -39,7 +41,7 @@ describe("scheduler", () => {
 	});
 
 	test("ensureSchedulerStarted calls ensureJobWorkerStarted", async () => {
-		const { ensureSchedulerStarted } = await import("src/server/scheduler");
+		const { ensureSchedulerStarted } = await import("./scheduler");
 
 		ensureSchedulerStarted();
 
@@ -47,7 +49,7 @@ describe("scheduler", () => {
 	});
 
 	test("ensureSchedulerStarted is idempotent (only starts once)", async () => {
-		const { ensureSchedulerStarted } = await import("src/server/scheduler");
+		const { ensureSchedulerStarted } = await import("./scheduler");
 
 		ensureSchedulerStarted();
 		ensureSchedulerStarted();
@@ -59,7 +61,7 @@ describe("scheduler", () => {
 	test("runs checkAndRunDueScans after interval", async () => {
 		dbSelectFromMock.mockResolvedValue([]);
 
-		const { ensureSchedulerStarted } = await import("src/server/scheduler");
+		const { ensureSchedulerStarted } = await import("./scheduler");
 
 		ensureSchedulerStarted();
 
@@ -80,7 +82,7 @@ describe("scheduler", () => {
 		]);
 		scanLibrary.mockResolvedValue(undefined);
 
-		const { ensureSchedulerStarted } = await import("src/server/scheduler");
+		const { ensureSchedulerStarted } = await import("./scheduler");
 
 		ensureSchedulerStarted();
 		await vi.advanceTimersByTimeAsync(60_000);
@@ -98,7 +100,7 @@ describe("scheduler", () => {
 			},
 		]);
 
-		const { ensureSchedulerStarted } = await import("src/server/scheduler");
+		const { ensureSchedulerStarted } = await import("./scheduler");
 
 		ensureSchedulerStarted();
 		await vi.advanceTimersByTimeAsync(60_000);
@@ -116,7 +118,7 @@ describe("scheduler", () => {
 		]);
 		scanLibrary.mockResolvedValue(undefined);
 
-		const { ensureSchedulerStarted } = await import("src/server/scheduler");
+		const { ensureSchedulerStarted } = await import("./scheduler");
 
 		ensureSchedulerStarted();
 		await vi.advanceTimersByTimeAsync(60_000);
@@ -141,7 +143,7 @@ describe("scheduler", () => {
 		scanLibrary.mockRejectedValueOnce(new Error("Scan failed"));
 		scanLibrary.mockResolvedValueOnce(undefined);
 
-		const { ensureSchedulerStarted } = await import("src/server/scheduler");
+		const { ensureSchedulerStarted } = await import("./scheduler");
 
 		ensureSchedulerStarted();
 		await vi.advanceTimersByTimeAsync(60_000);
