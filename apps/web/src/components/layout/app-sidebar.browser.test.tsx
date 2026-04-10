@@ -103,9 +103,6 @@ describe("AppSidebar", () => {
 
 	test("renders Collections section", async () => {
 		const screen = await renderSidebar();
-		const label = screen.container.querySelector(
-			"[data-slot='sidebar-group-label']",
-		);
 		const labels = screen.container.querySelectorAll(
 			"[data-slot='sidebar-group-label']",
 		);
