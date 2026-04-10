@@ -186,8 +186,7 @@ describe("SyncSettingsPage", () => {
 		const Page = mocks.getComponent() as ComponentType;
 		const screen = await render(<Page />);
 		// Click trash button to enter confirm state
-		const trashButtons = screen.getByRole("button", { name: "" });
-		// Use container query instead
+		// Use container query to find the destructive delete button
 		const deleteIcons = document.querySelectorAll(
 			"button svg.text-destructive",
 		);
